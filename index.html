@@ -436,14 +436,14 @@
       /* Empty State */
       .empty-state {
         text-align: center;
-        padding: 56px 24px;
+        padding: 40px 24px 36px;
         color: var(--text-muted);
       }
 
       .empty-icon {
         width: 44px;
         height: 44px;
-        margin: 0 auto 12px;
+        margin: 0 auto 10px;
         color: #cbd5e1;
       }
 
@@ -776,6 +776,7 @@
 
           if (currentNotes.length === 0) {
             notesList.innerHTML = '';
+            notesList.style.display = 'none';
             emptyState.style.display = 'block';
             if (isPrincipal) {
               emptyText.textContent = 'No hay notas pendientes';
@@ -787,6 +788,7 @@
             return;
           }
 
+          notesList.style.display = 'block';
           emptyState.style.display = 'none';
 
           notesList.innerHTML = currentNotes.map(note => {
