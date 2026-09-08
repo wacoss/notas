@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bloc de Notas</title>
+    <meta name="description" content="Bloc de notas minimalista con pestañas Principal y Completada, almacenamiento en localStorage." />
+    <meta property="og:title" content="Bloc de Notas" />
+    <meta property="og:description" content="Bloc de notas minimalista con pestañas Principal y Completada, almacenamiento en localStorage." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <style>
+      :root {
+        --bg-page: #f1f5f9;
+        --card-bg: #ffffff;
+        --text-main: #0f172a;
+        --text-sub: #475569;
+        --text-muted: #94a3b8;
+        --border-color: #e2e8f0;
+        --border-hover: #cbd5e1;
+        --accent: #2563eb;
+        --accent-hover: #1d4ed8;
+        --danger: #ef4444;
+        --radius: 12px;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: var(--bg-page);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 40px 16px;
+      }
+
+      .app-wrapper {
+        width: 100%;
+        max-width: 620px;
+      }
+
+      /* Main Card Interface */
+      .notes-card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      /* Card Header */
+      .card-header {
+        padding: 24px 24px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .app-title-group h1 {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: var(--text-main);
+      }
+
+      .storage-tag {
+        font-size: 12px;
+        font-weight: 500;
+        color: #059669;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .storage-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #10b981;
+      }
+
+      /* Tabs Bar: Principal y Completada */
+      .tabs-bar {
+        display: flex;
+        border-bottom: 1px solid var(--border-color);
+        padding: 0 24px;
+        gap: 20px;
+      }
+
+      .tab-btn {
+        background: none;
+        border: none;
+        padding: 12px 4px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-sub);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+        transition: color 0.15s ease;
+      }
+
+      .tab-btn:hover {
+        color: var(--text-main);
+      }
+
+      .tab-btn.active {
+        color: var(--accent);
+      }
+
+      .tab-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background-color: var(--accent);
+        border-radius: 2px 2px 0 0;
+      }
+
+      .tab-badge {
+        font-size: 12px;
+        padding: 1px 7px;
+        border-radius: 9999px;
+        background: #f1f5f9;
+        color: var(--text-sub);
+        font-weight: 600;
+      }
+
+      .tab-btn.active .tab-badge {
+        background: #eff6ff;
+        color: var(--accent);
+      }
+
+      /* Note Input Area with field-sizing: content */
+      .new-note-container {
+        padding: 18px 24px 16px;
+        border-bottom: 1px solid var(--border-color);
+        background-color: #ffffff;
+      }
+
+      .input-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: #f8fafc;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 12px 14px 10px;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+
+      .input-form:focus-within {
+        border-color: var(--accent);
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .note-textarea {
+        width: 100%;
+        field-sizing: content;
+        min-height: 48px;
+        max-height: 260px;
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        line-height: 1.6;
+        color: var(--text-main);
+        outline: none;
+        resize: none;
+        font-family: inherit;
+        overflow-y: auto;
+      }
+
+      .note-textarea::placeholder {
+        color: var(--text-muted);
+      }
+
+      .form-actions-row {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      .btn-add {
+        background-color: var(--accent);
+        color: #ffffff;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+
+      .btn-add:hover {
+        background-color: var(--accent-hover);
+      }
+
+      /* Notes List */
+      .notes-list {
+        list-style: none;
+        padding: 8px 0;
+        min-height: 220px;
+      }
+
+      .note-item {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 16px 24px;
+        gap: 14px;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.15s ease;
+      }
+
+      .note-item:last-child {
+        border-bottom: none;
+      }
+
+      .note-item:hover {
+        background-color: #f8fafc;
+      }
+
+      .note-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* Square Checkbox Button (Botón Cuadrado) */
+      .check-btn-square {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        border: 2px solid var(--border-hover);
+        background: #ffffff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+        padding: 0;
+        margin-top: 2px;
+      }
+
+      .check-btn-square:hover {
+        border-color: var(--accent);
+      }
+
+      .check-btn-square.completed {
+        background-color: #10b981;
+        border-color: #10b981;
+        color: #ffffff;
+      }
+
+      .check-btn-square svg {
+        width: 14px;
+        height: 14px;
+        stroke-width: 3;
+        stroke: currentColor;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        display: none;
+      }
+
+      .check-btn-square.completed svg {
+        display: block;
+      }
+
+      /* Content with higher font size & newline support */
+      .note-content-text {
+        font-size: 16px;
+        color: var(--text-main);
+        word-break: break-word;
+        line-height: 1.6;
+        flex: 1;
+        cursor: pointer;
+        white-space: pre-wrap;
+      }
+
+      .note-item.is-completed .note-content-text {
+        text-decoration: line-through;
+        color: var(--text-muted);
+      }
+
+      .edit-textarea {
+        width: 100%;
+        field-sizing: content;
+        min-height: 60px;
+        max-height: 260px;
+        font-size: 16px;
+        line-height: 1.6;
+        color: var(--text-main);
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        padding: 8px 12px;
+        outline: none;
+        background: #ffffff;
+        resize: none;
+        font-family: inherit;
+        white-space: pre-wrap;
+        overflow-y: auto;
+      }
+
+      .note-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0.6;
+        transition: opacity 0.15s;
+        margin-top: 1px;
+      }
+
+      .note-item:hover .note-actions {
+        opacity: 1;
+      }
+
+      .action-btn {
+        background: none;
+        border: none;
+        color: var(--text-sub);
+        padding: 6px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+      }
+
+      .action-btn:hover {
+        background: #f1f5f9;
+        color: var(--text-main);
+      }
+
+      .action-btn.btn-delete:hover {
+        background: #fef2f2;
+        color: var(--danger);
+      }
+
+      /* Empty State */
+      .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--text-muted);
+      }
+
+      .empty-icon {
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 12px;
+        color: #cbd5e1;
+      }
+
+      .empty-state p {
+        font-size: 15px;
+        color: var(--text-sub);
+      }
+
+      .empty-state span {
+        font-size: 13px;
+        color: var(--text-muted);
+        display: block;
+        margin-top: 4px;
+      }
+
+      svg {
+        width: 17px;
+        height: 17px;
+        stroke-width: 2;
+        stroke: currentColor;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-wrapper">
+      <div class="notes-card" id="notes-app">
+        <!-- Card Header -->
+        <div class="card-header">
+          <div class="app-title-group">
+            <h1 id="header-title">Notas</h1>
+          </div>
+          <div class="storage-tag" title="Guardado automático en el navegador">
+            <span class="storage-dot"></span>
+            <span>localStorage</span>
+          </div>
+        </div>
+
+        <!-- 2 Tabs: Principal & Completada -->
+        <div class="tabs-bar" role="tablist">
+          <button class="tab-btn active" id="tab-btn-principal" type="button" role="tab">
+            <span>Principal</span>
+            <span class="tab-badge" id="badge-principal">0</span>
+          </button>
+          <button class="tab-btn" id="tab-btn-completada" type="button" role="tab">
+            <span>Completada</span>
+            <span class="tab-badge" id="badge-completada">0</span>
+          </button>
+        </div>
+
+        <!-- Add Note Input Bar with Textarea -->
+        <div class="new-note-container" id="container-add-note">
+          <div class="input-form">
+            <textarea
+              class="note-textarea"
+              id="input-new-note"
+              placeholder="Escribe una nota aquí..."
+              rows="1"
+            ></textarea>
+            <div class="form-actions-row">
+              <button type="button" class="btn-add" id="btn-submit-note">Añadir</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes List -->
+        <ul class="notes-list" id="notes-list"></ul>
+
+        <!-- Empty State Container -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" style="width: 40px; height: 40px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <p id="empty-text">No hay notas pendientes</p>
+          <span id="empty-hint">Escribe arriba para agregar una nota nueva</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Application Script -->
+    <script type="module">
+      const STORAGE_KEY = 'remix_notes_storage_v2';
+
+      // Initial demo notes with linebreaks
+      const DEFAULT_NOTES = [
+        {
+          id: '1',
+          text: 'Revisar pendientes del día:\n- Responder correos\n- Actualizar informe',
+          completed: false,
+          createdAt: Date.now() - 3600000
+        },
+        {
+          id: '2',
+          text: 'Comprar café y frutas',
+          completed: false,
+          createdAt: Date.now() - 1800000
+        },
+        {
+          id: '3',
+          text: 'Nota de bienvenida terminada',
+          completed: true,
+          createdAt: Date.now() - 7200000
+        }
+      ];
+
+      // State
+      let notes = loadNotes();
+      let currentTab = 'principal'; // 'principal' | 'completada'
+      let editingId = null;
+
+      function loadNotes() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) {
+            saveNotes(DEFAULT_NOTES);
+            return [...DEFAULT_NOTES];
+          }
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [...DEFAULT_NOTES];
+        } catch (e) {
+          console.error('Error cargando notas de localStorage:', e);
+          return [...DEFAULT_NOTES];
+        }
+      }
+
+      function saveNotes(notesArray) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(notesArray));
+        } catch (e) {
+          console.error('Error guardando en localStorage:', e);
+        }
+      }
+
+      // DOM References
+      const tabBtnPrincipal = document.getElementById('tab-btn-principal');
+      const tabBtnCompletada = document.getElementById('tab-btn-completada');
+      const badgePrincipal = document.getElementById('badge-principal');
+      const badgeCompletada = document.getElementById('badge-completada');
+      const textareaNewNote = document.getElementById('input-new-note');
+      const btnSubmitNote = document.getElementById('btn-submit-note');
+      const notesList = document.getElementById('notes-list');
+      const emptyState = document.getElementById('empty-state');
+      const emptyText = document.getElementById('empty-text');
+      const emptyHint = document.getElementById('empty-hint');
+
+      // Tab Switching
+      tabBtnPrincipal.addEventListener('click', () => switchTab('principal'));
+      tabBtnCompletada.addEventListener('click', () => switchTab('completada'));
+
+      function switchTab(tab) {
+        currentTab = tab;
+        tabBtnPrincipal.classList.toggle('active', tab === 'principal');
+        tabBtnCompletada.classList.toggle('active', tab === 'completada');
+        editingId = null;
+        render();
+      }
+
+      // Helper to adjust height on non-supporting browsers (fallback for field-sizing)
+      const supportsFieldSizing = CSS.supports && CSS.supports('field-sizing', 'content');
+      function adjustHeightFallback(el) {
+        if (!supportsFieldSizing && el) {
+          el.style.height = 'auto';
+          el.style.height = Math.min(el.scrollHeight, 260) + 'px';
+        }
+      }
+
+      // Submit note logic
+      function submitNewNote() {
+        const text = textareaNewNote.value.trim();
+        if (!text) return;
+
+        const newNote = {
+          id: 'note-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          text,
+          completed: false,
+          createdAt: Date.now()
+        };
+
+        notes = [newNote, ...notes];
+        saveNotes(notes);
+        textareaNewNote.value = '';
+        if (!supportsFieldSizing) {
+          textareaNewNote.style.height = '';
+        }
+
+        if (currentTab !== 'principal') {
+          switchTab('principal');
+        } else {
+          render();
+        }
+      }
+
+      // Add Note button click
+      btnSubmitNote.addEventListener('click', submitNewNote);
+
+      // Auto-grow fallback listener
+      textareaNewNote.addEventListener('input', () => {
+        adjustHeightFallback(textareaNewNote);
+      });
+
+      // Keydown handler on textarea:
+      // - Shift + Enter: inserts line break
+      // - Enter alone: submits the note
+      textareaNewNote.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          if (e.shiftKey) {
+            // Allow default line break insertion
+            return;
+          }
+          // Enter alone submits note
+          e.preventDefault();
+          submitNewNote();
+        }
+      });
+
+      // Render Notes List
+      function render() {
+        const isPrincipal = currentTab === 'principal';
+        const principalNotes = notes.filter(n => !n.completed);
+        const completadaNotes = notes.filter(n => n.completed);
+
+        badgePrincipal.textContent = principalNotes.length;
+        badgeCompletada.textContent = completadaNotes.length;
+
+        const currentNotes = isPrincipal ? principalNotes : completadaNotes;
+
+        // Empty state
+        if (currentNotes.length === 0) {
+          notesList.innerHTML = '';
+          emptyState.style.display = 'block';
+          if (isPrincipal) {
+            emptyText.textContent = 'No hay notas pendientes';
+            emptyHint.textContent = 'Escribe arriba para agregar una nota nueva';
+          } else {
+            emptyText.textContent = 'No hay notas completadas';
+            emptyHint.textContent = 'Las notas que marques como terminadas aparecerán aquí';
+          }
+          return;
+        }
+
+        emptyState.style.display = 'none';
+
+        // Render Items
+        notesList.innerHTML = currentNotes.map(note => {
+          const isEditing = editingId === note.id;
+          const escapedText = escapeHtml(note.text);
+
+          return `
+            <li class="note-item ${note.completed ? 'is-completed' : ''}" data-id="${note.id}">
+              <div class="note-left">
+                <!-- Square Checkbox Button -->
+                <button
+                  type="button"
+                  class="check-btn-square ${note.completed ? 'completed' : ''}"
+                  title="${note.completed ? 'Marcar como pendiente' : 'Marcar como completada'}"
+                  data-action="toggle"
+                >
+                  <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
+
+                ${isEditing ? `
+                  <textarea
+                    class="edit-textarea"
+                    rows="1"
+                    data-action="edit-textarea"
+                  >${escapedText}</textarea>
+                ` : `
+                  <div class="note-content-text" ${isPrincipal ? 'data-action="start-edit" title="Doble clic para editar"' : ''}>${escapedText}</div>
+                `}
+              </div>
+
+              <div class="note-actions">
+                ${isPrincipal ? `
+                  <!-- Pestaña Principal: SOLO botón de Editar -->
+                  ${isEditing ? `
+                    <button type="button" class="action-btn" data-action="save-edit" title="Guardar cambios">
+                      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
+                  ` : `
+                    <button type="button" class="action-btn" data-action="start-edit" title="Editar nota">
+                      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    </button>
+                  `}
+                ` : `
+                  <!-- Pestaña Completada: SOLO botón de Eliminar -->
+                  <button type="button" class="action-btn btn-delete" data-action="delete" title="Eliminar nota definitivamente">
+                    <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                `}
+              </div>
+            </li>
+          `;
+        }).join('');
+
+        // Focus edit textarea if active
+        if (editingId) {
+          const editTextarea = notesList.querySelector('.edit-textarea');
+          if (editTextarea) {
+            editTextarea.focus();
+            editTextarea.setSelectionRange(editTextarea.value.length, editTextarea.value.length);
+            adjustHeightFallback(editTextarea);
+          }
+        }
+      }
+
+      // Event Delegation on Notes List
+      notesList.addEventListener('click', (e) => {
+        const item = e.target.closest('.note-item');
+        if (!item) return;
+        const noteId = item.getAttribute('data-id');
+        const targetAction = e.target.closest('[data-action]');
+        const action = targetAction ? targetAction.getAttribute('data-action') : null;
+
+        // Toggle completed status (Square button)
+        if (action === 'toggle') {
+          notes = notes.map(n => n.id === noteId ? { ...n, completed: !n.completed } : n);
+          saveNotes(notes);
+          render();
+          return;
+        }
+
+        // Delete note (only present in completed tab)
+        if (action === 'delete') {
+          notes = notes.filter(n => n.id !== noteId);
+          if (editingId === noteId) editingId = null;
+          saveNotes(notes);
+          render();
+          return;
+        }
+
+        // Start edit (only in principal tab)
+        if (action === 'start-edit' && currentTab === 'principal' && !editingId) {
+          editingId = noteId;
+          render();
+          return;
+        }
+
+        // Save edit button
+        if (action === 'save-edit') {
+          commitEdit(noteId, item);
+          return;
+        }
+      });
+
+      // Double click to edit (only in principal tab)
+      notesList.addEventListener('dblclick', (e) => {
+        if (currentTab !== 'principal') return;
+        const item = e.target.closest('.note-item');
+        if (!item || editingId) return;
+        editingId = item.getAttribute('data-id');
+        render();
+      });
+
+      // Input listener on edit textarea for fallback
+      notesList.addEventListener('input', (e) => {
+        if (e.target.classList.contains('edit-textarea')) {
+          adjustHeightFallback(e.target);
+        }
+      });
+
+      // Handle shortcuts in edit textarea
+      notesList.addEventListener('keydown', (e) => {
+        if (e.target.classList.contains('edit-textarea')) {
+          const item = e.target.closest('.note-item');
+          const noteId = item.getAttribute('data-id');
+
+          // Ctrl+Enter or Cmd+Enter to save edit
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            commitEdit(noteId, item);
+          } else if (e.key === 'Escape') {
+            editingId = null;
+            render();
+          }
+        }
+      });
+
+      function commitEdit(noteId, item) {
+        const editTextarea = item.querySelector('.edit-textarea');
+        if (!editTextarea) return;
+        const newText = editTextarea.value.trim();
+        if (newText) {
+          notes = notes.map(n => n.id === noteId ? { ...n, text: newText } : n);
+          saveNotes(notes);
+        }
+        editingId = null;
+        render();
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // Initial render
+      render();
+    </script>
+  </body>
+</html>
