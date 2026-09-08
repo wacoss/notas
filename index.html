@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bloc de Notas</title>
-    <meta name="description" content="Bloc de notas minimalista con pestañas Principal y Completada, botón flotante circular y almacenamiento en localStorage." />
-    <meta property="og:title" content="Bloc de Notas" />
-    <meta property="og:description" content="Bloc de notas minimalista con pestañas Principal y Completada, botón flotante circular y almacenamiento en localStorage." />
+    <title>Mis Notas</title>
+    <meta name="description" content="Bloc de notas minimalista con pestañas Principal y Archivado, botón flotante circular y almacenamiento en localStorage." />
+    <meta property="og:title" content="Mis Notas" />
+    <meta property="og:description" content="Bloc de notas minimalista con pestañas Principal y Archivado, botón flotante circular y almacenamiento en localStorage." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <style>
@@ -40,7 +40,7 @@
         min-height: 100vh;
         display: flex;
         justify-content: center;
-        padding: 36px 16px 100px;
+        padding: 12px 16px 80px;
         position: relative;
       }
 
@@ -58,19 +58,20 @@
         overflow: hidden;
       }
 
-      /* Card Header */
-      .card-header {
-        padding: 24px 24px 18px;
+      /* App Header (Fuera de la interfaz principal, reubicado más arriba) */
+      .app-header {
+        padding: 0 4px;
+        margin-bottom: 28px;
         display: flex;
         align-items: center;
         justify-content: space-between;
       }
 
       .app-title-group h1 {
-        font-size: 22px;
+        font-size: 24px;
         font-weight: 700;
-        letter-spacing: -0.01em;
-        color: var(--text-main);
+        letter-spacing: -0.015em;
+        color: var(--primary);
       }
 
       .storage-tag {
@@ -93,12 +94,12 @@
         background-color: #10b981;
       }
 
-      /* Tabs Bar: Principal y Completada */
+      /* Tabs Bar: Espacio con el borde de la interfase principal */
       .tabs-bar {
         display: flex;
         border-bottom: 1px solid var(--border-color);
-        padding: 0 24px;
-        gap: 20px;
+        padding: 10px 24px 0;
+        gap: 24px;
       }
 
       .tab-btn {
@@ -394,6 +395,11 @@
         color: #059669;
       }
 
+      .action-btn.btn-restore:hover {
+        background: #eff6ff;
+        color: var(--accent);
+      }
+
       .action-btn.btn-delete:hover {
         background: #fef2f2;
         color: var(--danger);
@@ -485,26 +491,26 @@
   </head>
   <body>
     <div class="app-wrapper">
-      <div class="notes-card" id="notes-app">
-        <!-- Card Header -->
-        <div class="card-header">
-          <div class="app-title-group">
-            <h1 id="header-title">Notas</h1>
-          </div>
-          <div class="storage-tag" id="storage-tag" title="Guardado automático en el navegador">
-            <span class="storage-dot"></span>
-            <span>localStorage</span>
-          </div>
+      <!-- Header fuera de la interfaz principal -->
+      <header class="app-header">
+        <div class="app-title-group">
+          <h1 id="header-title">Mis Notas</h1>
         </div>
+        <div class="storage-tag" id="storage-tag">
+          <span class="storage-dot"></span>
+          <span>localStorage</span>
+        </div>
+      </header>
 
-        <!-- 2 Tabs: Principal & Completada -->
+      <main class="notes-card" id="notes-app">
+        <!-- 2 Tabs: Principal & Archivado -->
         <div class="tabs-bar" role="tablist">
           <button class="tab-btn active" id="tab-btn-principal" type="button" role="tab" aria-selected="true">
             <span>Principal</span>
             <span class="tab-badge" id="badge-principal">0</span>
           </button>
           <button class="tab-btn" id="tab-btn-completada" type="button" role="tab" aria-selected="false">
-            <span>Completada</span>
+            <span>Archivado</span>
             <span class="tab-badge" id="badge-completada">0</span>
           </button>
         </div>
@@ -537,7 +543,7 @@
           <p id="empty-text">No hay notas pendientes</p>
           <span id="empty-hint">Usa el botón flotante (+) para agregar una nueva nota</span>
         </div>
-      </div>
+      </main>
     </div>
 
     <!-- Botón Flotante Circular con signo de + (FAB) -->
@@ -736,8 +742,8 @@
               emptyText.textContent = 'No hay notas pendientes';
               emptyHint.textContent = 'Presiona el botón (+) en la esquina inferior para crear una nota';
             } else {
-              emptyText.textContent = 'No hay notas completadas';
-              emptyHint.textContent = 'Las notas que marques como completadas aparecerán aquí';
+              emptyText.textContent = 'No hay notas archivadas';
+              emptyHint.textContent = 'Las notas que archives aparecerán aquí';
             }
             return;
           }
@@ -751,16 +757,18 @@
             return `
               <li class="note-item ${note.completed ? 'is-completed' : ''}" data-id="${note.id}" id="note-item-${note.id}">
                 <div class="note-left">
-                  <!-- Botón cuadrado de checkbox -->
-                  <button
-                    type="button"
-                    class="check-btn-square ${note.completed ? 'completed' : ''}"
-                    title="${note.completed ? 'Marcar como pendiente' : 'Marcar como completada'}"
-                    data-action="toggle"
-                    id="check-btn-${note.id}"
-                  >
-                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                  </button>
+                  ${isPrincipal ? `
+                    <!-- Botón cuadrado de checkbox (solo en pestaña Principal) -->
+                    <button
+                      type="button"
+                      class="check-btn-square ${note.completed ? 'completed' : ''}"
+                      title="Archivar nota"
+                      data-action="toggle"
+                      id="check-btn-${note.id}"
+                    >
+                      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
+                  ` : ''}
 
                   ${isEditing ? `
                     <div class="edit-container">
@@ -793,6 +801,9 @@
                       </button>
                     `}
                   ` : `
+                    <button type="button" class="action-btn btn-restore" data-action="restore" title="Restaurar nota a Principal" id="restore-btn-${note.id}">
+                      <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    </button>
                     <button type="button" class="action-btn btn-delete" data-action="delete" title="Eliminar nota definitivamente" id="delete-btn-${note.id}">
                       <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
@@ -825,6 +836,14 @@
           // Toggle completed status
           if (action === 'toggle') {
             notes = notes.map(n => n.id === noteId ? { ...n, completed: !n.completed } : n);
+            saveNotes(notes);
+            render();
+            return;
+          }
+
+          // Restore note (in completada tab)
+          if (action === 'restore') {
+            notes = notes.map(n => n.id === noteId ? { ...n, completed: false } : n);
             saveNotes(notes);
             render();
             return;
