@@ -515,6 +515,120 @@
         stroke-linecap: round;
         stroke-linejoin: round;
       }
+
+      /* Delete Confirmation Modal */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(2px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        padding: 16px;
+        animation: fadeInModal 0.15s ease-out;
+      }
+
+      @keyframes fadeInModal {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .modal-box {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 24px;
+        max-width: 380px;
+        width: 100%;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        border: 1px solid var(--border-color);
+        text-align: center;
+        animation: scaleInModal 0.18s ease-out;
+      }
+
+      @keyframes scaleInModal {
+        from {
+          opacity: 0;
+          transform: scale(0.94);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .modal-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background-color: #fef2f2;
+        color: #ef4444;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 14px;
+      }
+
+      .modal-icon svg {
+        width: 24px;
+        height: 24px;
+        stroke-width: 2.2;
+      }
+
+      .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 8px;
+      }
+
+      .modal-message {
+        font-size: 14px;
+        color: var(--text-sub);
+        line-height: 1.5;
+        margin-bottom: 22px;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .btn-modal-cancel {
+        flex: 1;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: 1px solid var(--border-hover);
+        background: #ffffff;
+        color: var(--text-sub);
+        cursor: pointer;
+        transition: background-color 0.15s, color 0.15s;
+      }
+
+      .btn-modal-cancel:hover {
+        background: #f8fafc;
+        color: var(--text-main);
+      }
+
+      .btn-modal-confirm {
+        flex: 1;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        background: #ef4444;
+        color: #ffffff;
+        cursor: pointer;
+        transition: background-color 0.15s;
+      }
+
+      .btn-modal-confirm:hover {
+        background: #dc2626;
+      }
     </style>
   </head>
   <body>
@@ -571,10 +685,25 @@
           <div class="empty-icon">
             <svg viewBox="0 0 24 24" style="width: 42px; height: 42px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           </div>
-          <p id="empty-text">No hay notas pendientes</p>
+          <p id="empty-text">No hay notas</p>
           <span id="empty-hint">Usa el botón flotante (+) para agregar una nueva nota</span>
         </div>
       </main>
+    </div>
+
+    <!-- Modal de confirmación / advertencia para eliminar nota -->
+    <div class="modal-backdrop" id="delete-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-box">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3 class="modal-title" id="modal-title">¿Eliminar nota?</h3>
+        <p class="modal-message">Esta nota se eliminará definitivamente de tus archivos. Esta acción no se puede deshacer.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" id="btn-cancel-delete">Cancelar</button>
+          <button type="button" class="btn-modal-confirm" id="btn-confirm-delete">Eliminar</button>
+        </div>
+      </div>
     </div>
 
     <!-- Botón Flotante Circular con signo de + (FAB) -->
@@ -661,6 +790,54 @@
         const emptyState = document.getElementById('empty-state');
         const emptyText = document.getElementById('empty-text');
         const emptyHint = document.getElementById('empty-hint');
+        const deleteModal = document.getElementById('delete-modal');
+        const btnCancelDelete = document.getElementById('btn-cancel-delete');
+        const btnConfirmDelete = document.getElementById('btn-confirm-delete');
+        let noteIdToDelete = null;
+
+        function openDeleteModal(id) {
+          noteIdToDelete = id;
+          if (deleteModal) {
+            deleteModal.style.display = 'flex';
+          }
+        }
+
+        function closeDeleteModal() {
+          noteIdToDelete = null;
+          if (deleteModal) {
+            deleteModal.style.display = 'none';
+          }
+        }
+
+        if (btnCancelDelete) {
+          btnCancelDelete.addEventListener('click', closeDeleteModal);
+        }
+
+        if (btnConfirmDelete) {
+          btnConfirmDelete.addEventListener('click', () => {
+            if (noteIdToDelete) {
+              notes = notes.filter(n => n.id !== noteIdToDelete);
+              if (editingId === noteIdToDelete) editingId = null;
+              saveNotes(notes);
+              closeDeleteModal();
+              render();
+            }
+          });
+        }
+
+        if (deleteModal) {
+          deleteModal.addEventListener('click', (e) => {
+            if (e.target === deleteModal) {
+              closeDeleteModal();
+            }
+          });
+        }
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && deleteModal && deleteModal.style.display === 'flex') {
+            closeDeleteModal();
+          }
+        });
 
         // Toggle / Open / Close Note Input
         function openNoteInput() {
@@ -779,7 +956,7 @@
             notesList.style.display = 'none';
             emptyState.style.display = 'block';
             if (isPrincipal) {
-              emptyText.textContent = 'No hay notas pendientes';
+              emptyText.textContent = 'No hay notas';
               emptyHint.textContent = 'Presiona el botón (+) en la esquina inferior para crear una nota';
             } else {
               emptyText.textContent = 'No hay notas archivadas';
@@ -880,12 +1057,9 @@
             return;
           }
 
-          // Delete note (in completada tab)
+          // Delete note (in completada tab) - muestra advertencia antes de eliminar
           if (action === 'delete') {
-            notes = notes.filter(n => n.id !== noteId);
-            if (editingId === noteId) editingId = null;
-            saveNotes(notes);
-            render();
+            openDeleteModal(noteId);
             return;
           }
 
