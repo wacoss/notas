@@ -218,6 +218,24 @@
         flex-shrink: 0;
       }
 
+      .btn-save-input {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+      }
+
+      .btn-save-input:hover {
+        background: #eff6ff;
+        color: var(--accent-hover);
+      }
+
       .btn-close-input {
         background: none;
         border: none;
@@ -515,16 +533,19 @@
           </button>
         </div>
 
-        <!-- Add Note Input Bar: Compact, toggled by FAB, no Add button, saves on Enter -->
+        <!-- Add Note Input Bar: Compact, toggled by FAB, saves on Enter/Check -->
         <div class="new-note-container" id="container-add-note">
           <div class="input-wrapper">
             <textarea
               class="note-textarea"
               id="input-new-note"
-              placeholder="Escribe una nota y presiona enter para guardar"
+              placeholder="Escribe una nota..."
               rows="1"
             ></textarea>
             <div class="input-controls">
+              <button type="button" class="btn-save-input" id="btn-save-new-note" title="Guardar nota" aria-label="Guardar nota">
+                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px;"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
               <button type="button" class="btn-close-input" id="btn-close-input" title="Cerrar (Esc)" aria-label="Cerrar">
                 <svg viewBox="0 0 24 24" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -623,6 +644,7 @@
         const badgeCompletada = document.getElementById('badge-completada');
         const containerAddNote = document.getElementById('container-add-note');
         const textareaNewNote = document.getElementById('input-new-note');
+        const btnSaveNewNote = document.getElementById('btn-save-new-note');
         const btnCloseInput = document.getElementById('btn-close-input');
         const btnFabAdd = document.getElementById('btn-fab-add');
         const notesList = document.getElementById('notes-list');
@@ -662,6 +684,9 @@
 
         // Close button inside input
         btnCloseInput.addEventListener('click', closeNoteInput);
+        if (btnSaveNewNote) {
+          btnSaveNewNote.addEventListener('click', submitNewNote);
+        }
 
         // Auto-expand textarea compactly
         textareaNewNote.addEventListener('input', () => {
@@ -713,8 +738,12 @@
 
         textareaNewNote.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
+            const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouch) {
+              return; // En celular, el botón de Enter es para salto de línea
+            }
             if (e.shiftKey) {
-              return; // permite salto de línea
+              return; // permite salto de línea en teclado físico
             }
             e.preventDefault();
             submitNewNote();
@@ -778,7 +807,7 @@
                         data-action="edit-textarea"
                         id="edit-textarea-${note.id}"
                       >${escapedText}</textarea>
-                      <div class="edit-hint">Enter o Ctrl+Enter para guardar • Esc para cancelar</div>
+                      <div class="edit-hint">Toca ✓ o Ctrl+Enter para guardar • Salto de línea permitido</div>
                     </div>
                   ` : `
                     <div
@@ -888,9 +917,13 @@
             const noteId = item.getAttribute('data-id');
 
             if (e.key === 'Enter') {
-              if (e.shiftKey) return; // salto de línea
-              e.preventDefault();
-              commitEdit(noteId, item);
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                commitEdit(noteId, item);
+                return;
+              }
+              // En celular y en el área de texto, permitir que el botón de Enter haga salto de línea normalmente
+              return;
             } else if (e.key === 'Escape') {
               editingId = null;
               render();
