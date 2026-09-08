@@ -807,29 +807,19 @@
                         data-action="edit-textarea"
                         id="edit-textarea-${note.id}"
                       >${escapedText}</textarea>
-                      <div class="edit-hint">Toca ✓ o Ctrl+Enter para guardar • Salto de línea permitido</div>
+                      <div class="edit-hint">Toca fuera para guardar • Enter para salto de línea</div>
                     </div>
                   ` : `
                     <div
                       class="note-content-text"
                       id="note-text-${note.id}"
-                      ${isPrincipal ? 'data-action="start-edit" title="Doble clic para editar"' : ''}
+                      ${isPrincipal ? 'data-action="start-edit" title="Toca para editar"' : ''}
                     >${escapedText}</div>
                   `}
                 </div>
 
                 <div class="note-actions">
-                  ${isPrincipal ? `
-                    ${isEditing ? `
-                      <button type="button" class="action-btn btn-save" data-action="save-edit" title="Guardar cambios" id="save-btn-${note.id}">
-                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                      </button>
-                    ` : `
-                      <button type="button" class="action-btn" data-action="start-edit" title="Editar nota" id="edit-btn-${note.id}">
-                        <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                      </button>
-                    `}
-                  ` : `
+                  ${isPrincipal ? '' : `
                     <button type="button" class="action-btn btn-restore" data-action="restore" title="Restaurar nota a Principal" id="restore-btn-${note.id}">
                       <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                     </button>
@@ -887,18 +877,38 @@
             return;
           }
 
-          // Start edit
-          if (action === 'start-edit' && currentTab === 'principal' && !editingId) {
-            editingId = noteId;
-            render();
+          // Start edit al presionar sobre la nota
+          if ((action === 'start-edit' || (!action && e.target.closest('.note-left') && !e.target.closest('.check-btn-square'))) && currentTab === 'principal') {
+            if (editingId && editingId !== noteId) {
+              commitEdit(editingId);
+            }
+            if (!editingId) {
+              editingId = noteId;
+              e.stopPropagation();
+              render();
+            }
             return;
           }
+        });
 
-          // Save edit
-          if (action === 'save-edit') {
-            commitEdit(noteId, item);
-            return;
+        // Guardar al perder el foco (blur) o salir del campo
+        notesList.addEventListener('focusout', (e) => {
+          if (e.target.classList.contains('edit-textarea')) {
+            const item = e.target.closest('.note-item');
+            const noteId = item ? item.getAttribute('data-id') : editingId;
+            setTimeout(() => {
+              if (editingId === noteId) {
+                commitEdit(noteId, item);
+              }
+            }, 100);
           }
+        });
+
+        // Guardar al presionar/tocar fuera del campo de edición
+        document.addEventListener('click', (e) => {
+          if (!editingId) return;
+          if (e.target.closest('.edit-container')) return;
+          commitEdit(editingId);
         });
 
         // Double click para editar
@@ -940,14 +950,18 @@
         });
 
         function commitEdit(noteId, item) {
-          const editTextarea = item.querySelector('.edit-textarea');
-          if (!editTextarea) return;
-          const newText = editTextarea.value.trim();
-          if (newText) {
-            notes = notes.map(n => n.id === noteId ? { ...n, text: newText } : n);
-            saveNotes(notes);
-          }
+          if (!editingId) return;
+          const targetNoteId = noteId || editingId;
           editingId = null;
+          const targetItem = item || document.getElementById('note-item-' + targetNoteId);
+          const editTextarea = targetItem ? targetItem.querySelector('.edit-textarea') : document.getElementById('edit-textarea-' + targetNoteId);
+          if (editTextarea) {
+            const newText = editTextarea.value.trim();
+            if (newText) {
+              notes = notes.map(n => n.id === targetNoteId ? { ...n, text: newText } : n);
+              saveNotes(notes);
+            }
+          }
           render();
         }
 
