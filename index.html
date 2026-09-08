@@ -361,30 +361,28 @@
         min-width: 0;
       }
 
+      .edit-container .input-wrapper {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        padding: 6px 12px;
+      }
+
       .edit-textarea {
         width: 100%;
-        min-height: 52px;
+        min-height: 36px;
         font-size: 16px;
         font-weight: 600;
         line-height: 1.55;
         color: var(--text-main);
-        border: 1.5px solid var(--accent);
-        border-radius: 6px;
-        padding: 8px 10px;
+        border: none;
         outline: none;
-        background: #ffffff;
+        background: transparent;
         resize: none;
         font-family: inherit;
         white-space: pre-wrap;
         overflow-y: auto;
         scrollbar-width: none; /* Firefox */
         -ms-overflow-style: none; /* IE y Edge */
-      }
-
-      .edit-hint {
-        font-size: 11px;
-        color: var(--text-muted);
-        margin-top: 4px;
       }
 
       .note-actions {
@@ -657,7 +655,7 @@
           </button>
         </div>
 
-        <!-- Add Note Input Bar: Compact, toggled by FAB, saves on Enter/Check -->
+        <!-- Add Note Input Bar: Compact, toggled by FAB, saves on Enter or clicking outside -->
         <div class="new-note-container" id="container-add-note">
           <div class="input-wrapper">
             <textarea
@@ -666,14 +664,6 @@
               placeholder="Escribe una nota..."
               rows="1"
             ></textarea>
-            <div class="input-controls">
-              <button type="button" class="btn-save-input" id="btn-save-new-note" title="Guardar nota" aria-label="Guardar nota">
-                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px;"><polyline points="20 6 9 17 4 12"/></svg>
-              </button>
-              <button type="button" class="btn-close-input" id="btn-close-input" title="Cerrar (Esc)" aria-label="Cerrar">
-                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
           </div>
         </div>
 
@@ -869,8 +859,10 @@
         // FAB Click
         btnFabAdd.addEventListener('click', toggleNoteInput);
 
-        // Close button inside input
-        btnCloseInput.addEventListener('click', closeNoteInput);
+        // Close and save buttons if present
+        if (btnCloseInput) {
+          btnCloseInput.addEventListener('click', closeNoteInput);
+        }
         if (btnSaveNewNote) {
           btnSaveNewNote.addEventListener('click', submitNewNote);
         }
@@ -990,13 +982,14 @@
 
                   ${isEditing ? `
                     <div class="edit-container">
-                      <textarea
-                        class="edit-textarea"
-                        rows="2"
-                        data-action="edit-textarea"
-                        id="edit-textarea-${note.id}"
-                      >${escapedText}</textarea>
-                      <div class="edit-hint">Toca fuera para guardar • Enter para salto de línea</div>
+                      <div class="input-wrapper">
+                        <textarea
+                          class="edit-textarea"
+                          rows="1"
+                          data-action="edit-textarea"
+                          id="edit-textarea-${note.id}"
+                        >${escapedText}</textarea>
+                      </div>
                     </div>
                   ` : `
                     <div
@@ -1077,7 +1070,7 @@
           }
         });
 
-        // Guardar al perder el foco (blur) o salir del campo
+        // Guardar al perder el foco (blur) o salir de la caja de edición
         notesList.addEventListener('focusout', (e) => {
           if (e.target.classList.contains('edit-textarea')) {
             const item = e.target.closest('.note-item');
@@ -1086,15 +1079,28 @@
               if (editingId === noteId) {
                 commitEdit(noteId, item);
               }
-            }, 100);
+            }, 80);
           }
         });
 
-        // Guardar al presionar/tocar fuera del campo de edición
+        // Completar la acción simplemente pinchando fuera de la caja de edición o creación
         document.addEventListener('click', (e) => {
-          if (!editingId) return;
-          if (e.target.closest('.edit-container')) return;
-          commitEdit(editingId);
+          if (editingId) {
+            if (!e.target.closest('.edit-container')) {
+              commitEdit(editingId);
+            }
+          }
+
+          if (isInputOpen) {
+            if (!e.target.closest('#container-add-note') && !e.target.closest('#btn-fab-add')) {
+              const text = textareaNewNote.value.trim();
+              if (text) {
+                submitNewNote();
+              } else {
+                closeNoteInput();
+              }
+            }
+          }
         });
 
         // Double click para editar
@@ -1110,19 +1116,22 @@
         notesList.addEventListener('keydown', (e) => {
           if (e.target.classList.contains('edit-textarea')) {
             const item = e.target.closest('.note-item');
-            const noteId = item.getAttribute('data-id');
+            const noteId = item ? item.getAttribute('data-id') : editingId;
 
             if (e.key === 'Enter') {
-              if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-                commitEdit(noteId, item);
-                return;
+              const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+              if (isTouch) {
+                return; // En celular, el botón de Enter es para salto de línea
               }
-              // En celular y en el área de texto, permitir que el botón de Enter haga salto de línea normalmente
+              if (e.shiftKey) {
+                return; // permite salto de línea en teclado físico con Shift+Enter
+              }
+              e.preventDefault();
+              commitEdit(noteId, item);
               return;
             } else if (e.key === 'Escape') {
-              editingId = null;
-              render();
+              e.preventDefault();
+              cancelEdit();
             }
           }
         });
@@ -1135,10 +1144,16 @@
           }
         });
 
-        function commitEdit(noteId, item) {
-          if (!editingId) return;
-          const targetNoteId = noteId || editingId;
+        function cancelEdit() {
           editingId = null;
+          render();
+        }
+
+        let isCommitting = false;
+        function commitEdit(noteId, item) {
+          if (!editingId || isCommitting) return;
+          isCommitting = true;
+          const targetNoteId = noteId || editingId;
           const targetItem = item || document.getElementById('note-item-' + targetNoteId);
           const editTextarea = targetItem ? targetItem.querySelector('.edit-textarea') : document.getElementById('edit-textarea-' + targetNoteId);
           if (editTextarea) {
@@ -1148,6 +1163,8 @@
               saveNotes(notes);
             }
           }
+          editingId = null;
+          isCommitting = false;
           render();
         }
 
