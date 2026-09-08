@@ -193,7 +193,6 @@
       .note-textarea {
         width: 100%;
         min-height: 38px;
-        max-height: 120px;
         border: none;
         background: transparent;
         font-size: 15px;
@@ -204,6 +203,16 @@
         resize: none;
         font-family: inherit;
         overflow-y: auto;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE y Edge */
+      }
+
+      .note-textarea::-webkit-scrollbar,
+      .edit-textarea::-webkit-scrollbar,
+      textarea::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+        width: 0;
+        height: 0;
       }
 
       .note-textarea::placeholder {
@@ -355,7 +364,6 @@
       .edit-textarea {
         width: 100%;
         min-height: 52px;
-        max-height: 240px;
         font-size: 16px;
         font-weight: 600;
         line-height: 1.55;
@@ -369,6 +377,8 @@
         font-family: inherit;
         white-space: pre-wrap;
         overflow-y: auto;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE y Edge */
       }
 
       .edit-hint {
@@ -688,10 +698,10 @@
           btnSaveNewNote.addEventListener('click', submitNewNote);
         }
 
-        // Auto-expand textarea compactly
+        // Auto-expand textarea smoothly
         textareaNewNote.addEventListener('input', () => {
           textareaNewNote.style.height = 'auto';
-          textareaNewNote.style.height = Math.min(textareaNewNote.scrollHeight, 120) + 'px';
+          textareaNewNote.style.height = textareaNewNote.scrollHeight + 'px';
         });
 
         // Tab Switching
@@ -839,7 +849,7 @@
               editTextarea.focus();
               editTextarea.setSelectionRange(editTextarea.value.length, editTextarea.value.length);
               editTextarea.style.height = 'auto';
-              editTextarea.style.height = Math.min(editTextarea.scrollHeight, 240) + 'px';
+              editTextarea.style.height = editTextarea.scrollHeight + 'px';
             }
           }
         }
@@ -945,7 +955,7 @@
         notesList.addEventListener('input', (e) => {
           if (e.target.classList.contains('edit-textarea')) {
             e.target.style.height = 'auto';
-            e.target.style.height = Math.min(e.target.scrollHeight, 240) + 'px';
+            e.target.style.height = e.target.scrollHeight + 'px';
           }
         });
 
