@@ -1,264 +1,917 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle2 } from 'lucide-react';
-import type { Note, TabType } from './types';
-import { NoteItem } from './components/NoteItem';
-import { NoteInput } from './components/NoteInput';
-import { FloatingActionButton } from './components/FloatingActionButton';
-
-const STORAGE_KEY = 'remix_notes_storage_v2';
-
-const DEFAULT_NOTES: Note[] = [
-  {
-    id: '1',
-    text: 'Revisar pendientes del día:\n- Responder correos\n- Actualizar informe',
-    completed: false,
-    createdAt: Date.now() - 3600000,
-  },
-  {
-    id: '2',
-    text: 'Comprar café y frutas',
-    completed: false,
-    createdAt: Date.now() - 1800000,
-  },
-  {
-    id: '3',
-    text: 'Nota de bienvenida terminada',
-    completed: true,
-    createdAt: Date.now() - 7200000,
-  },
-];
-
-export default function App() {
-  const [notes, setNotes] = useState<Note[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_NOTES));
-        return DEFAULT_NOTES;
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bloc de Notas</title>
+    <meta name="description" content="Bloc de notas minimalista con pestañas Principal y Completada, botón flotante circular y almacenamiento en localStorage." />
+    <meta property="og:title" content="Bloc de Notas" />
+    <meta property="og:description" content="Bloc de notas minimalista con pestañas Principal y Completada, botón flotante circular y almacenamiento en localStorage." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <style>
+      :root {
+        --bg-page: #f1f5f9;
+        --card-bg: #ffffff;
+        --text-main: #0f172a;
+        --text-sub: #475569;
+        --text-muted: #94a3b8;
+        --border-color: #e2e8f0;
+        --border-hover: #cbd5e1;
+        --accent: #2563eb;
+        --accent-hover: #1d4ed8;
+        --accent-soft: #eff6ff;
+        --danger: #ef4444;
+        --radius: 12px;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+        --fab-shadow: 0 8px 20px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.2);
       }
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : DEFAULT_NOTES;
-    } catch {
-      return DEFAULT_NOTES;
-    }
-  });
 
-  const [currentTab, setCurrentTab] = useState<TabType>('principal');
-  const [isInputOpen, setIsInputOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-  // Sync to localStorage whenever notes change
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-    } catch (e) {
-      console.error('Error guardando en localStorage:', e);
-    }
-  }, [notes]);
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: var(--bg-page);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 36px 16px 100px;
+        position: relative;
+      }
 
-  // Tab switching: close input if open when leaving 'principal'
-  const handleTabSwitch = (tab: TabType) => {
-    setCurrentTab(tab);
-    setEditingId(null);
-    if (tab !== 'principal') {
-      setIsInputOpen(false);
-    }
-  };
+      .app-wrapper {
+        width: 100%;
+        max-width: 620px;
+      }
 
-  const handleToggleCompleted = (id: string) => {
-    setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, completed: !n.completed } : n))
-    );
-  };
+      /* Main Card Interface */
+      .notes-card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
 
-  const handleDelete = (id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-    if (editingId === id) setEditingId(null);
-  };
+      /* Card Header */
+      .card-header {
+        padding: 24px 24px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
 
-  const handleStartEdit = (id: string) => {
-    setEditingId(id);
-  };
+      .app-title-group h1 {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: var(--text-main);
+      }
 
-  const handleSaveEdit = (id: string, newText: string) => {
-    setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, text: newText } : n))
-    );
-    setEditingId(null);
-  };
+      .storage-tag {
+        font-size: 12px;
+        font-weight: 500;
+        color: #059669;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
 
-  const handleCancelEdit = () => {
-    setEditingId(null);
-  };
+      .storage-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #10b981;
+      }
 
-  const handleAddNote = (text: string) => {
-    const newNote: Note = {
-      id: `note-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      text,
-      completed: false,
-      createdAt: Date.now(),
-    };
-    setNotes((prev) => [newNote, ...prev]);
-  };
+      /* Tabs Bar: Principal y Completada */
+      .tabs-bar {
+        display: flex;
+        border-bottom: 1px solid var(--border-color);
+        padding: 0 24px;
+        gap: 20px;
+      }
 
-  const principalNotes = notes.filter((n) => !n.completed);
-  const completadaNotes = notes.filter((n) => n.completed);
-  const activeNotes = currentTab === 'principal' ? principalNotes : completadaNotes;
+      .tab-btn {
+        background: none;
+        border: none;
+        padding: 12px 4px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-sub);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+        transition: color 0.15s ease;
+      }
 
-  return (
-    <main className="w-full min-h-screen flex justify-center py-10 px-4 sm:px-6">
-      <div className="w-full max-w-[620px] relative pb-20">
-        {/* Main Card */}
-        <div
-          id="notes-app"
-          className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"
-        >
-          {/* Header */}
-          <div className="px-6 pt-6 pb-4 flex items-center justify-between">
-            <div className="app-title-group">
-              <h1 id="header-title" className="text-[22px] font-bold tracking-tight text-slate-900">
-                Notas
-              </h1>
-            </div>
-            <div
-              id="storage-tag"
-              className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full flex items-center gap-1.5"
-              title="Guardado automático en el navegador"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>localStorage</span>
-            </div>
+      .tab-btn:hover {
+        color: var(--text-main);
+      }
+
+      .tab-btn.active {
+        color: var(--accent);
+      }
+
+      .tab-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background-color: var(--accent);
+        border-radius: 2px 2px 0 0;
+      }
+
+      .tab-badge {
+        font-size: 12px;
+        padding: 1px 7px;
+        border-radius: 9999px;
+        background: #f1f5f9;
+        color: var(--text-sub);
+        font-weight: 600;
+      }
+
+      .tab-btn.active .tab-badge {
+        background: #eff6ff;
+        color: var(--accent);
+      }
+
+      /* Note Input Area - Compact & Controlled by Floating Action Button */
+      .new-note-container {
+        padding: 12px 24px;
+        border-bottom: 1px solid var(--border-color);
+        background-color: #f8fafc;
+        display: none; /* toggled by FAB */
+        animation: slideDown 0.18s ease-out;
+      }
+
+      .new-note-container.open {
+        display: block;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid var(--border-hover);
+        border-radius: 8px;
+        padding: 8px 12px;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+
+      .input-wrapper:focus-within {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
+      .note-textarea {
+        width: 100%;
+        min-height: 38px;
+        max-height: 120px;
+        border: none;
+        background: transparent;
+        font-size: 15px;
+        font-weight: 500;
+        line-height: 1.5;
+        color: var(--text-main);
+        outline: none;
+        resize: none;
+        font-family: inherit;
+        overflow-y: auto;
+      }
+
+      .note-textarea::placeholder {
+        color: #94a3b8;
+        font-weight: 400;
+      }
+
+      .input-controls {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+
+      .btn-close-input {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+      }
+
+      .btn-close-input:hover {
+        background: #f1f5f9;
+        color: var(--text-main);
+      }
+
+      /* Notes List */
+      .notes-list {
+        list-style: none;
+        padding: 4px 0;
+        min-height: 220px;
+      }
+
+      .note-item {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 16px 24px;
+        gap: 14px;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.15s ease;
+      }
+
+      .note-item:last-child {
+        border-bottom: none;
+      }
+
+      .note-item:hover {
+        background-color: #f8fafc;
+      }
+
+      .note-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* Square Checkbox Button (Botón Cuadrado) */
+      .check-btn-square {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        border: 2px solid var(--border-hover);
+        background: #ffffff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+        padding: 0;
+        margin-top: 2px;
+      }
+
+      .check-btn-square:hover {
+        border-color: var(--accent);
+      }
+
+      .check-btn-square.completed {
+        background-color: #10b981;
+        border-color: #10b981;
+        color: #ffffff;
+      }
+
+      .check-btn-square svg {
+        width: 14px;
+        height: 14px;
+        stroke-width: 3;
+        stroke: currentColor;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        display: none;
+      }
+
+      .check-btn-square.completed svg {
+        display: block;
+      }
+
+      /* Content with HIGHER FONT WEIGHT (Peso aumentado de las tareas) */
+      .note-content-text {
+        font-size: 16px;
+        font-weight: 600; /* Aumentado el peso del texto de las tareas */
+        color: var(--text-main);
+        word-break: break-word;
+        line-height: 1.55;
+        flex: 1;
+        cursor: pointer;
+        white-space: pre-wrap;
+      }
+
+      .note-item.is-completed .note-content-text {
+        text-decoration: line-through;
+        color: var(--text-muted);
+        font-weight: 400;
+      }
+
+      .edit-container {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .edit-textarea {
+        width: 100%;
+        min-height: 52px;
+        max-height: 240px;
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.55;
+        color: var(--text-main);
+        border: 1.5px solid var(--accent);
+        border-radius: 6px;
+        padding: 8px 10px;
+        outline: none;
+        background: #ffffff;
+        resize: none;
+        font-family: inherit;
+        white-space: pre-wrap;
+        overflow-y: auto;
+      }
+
+      .edit-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      .note-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0.7;
+        transition: opacity 0.15s;
+        margin-top: 1px;
+      }
+
+      .note-item:hover .note-actions {
+        opacity: 1;
+      }
+
+      .action-btn {
+        background: none;
+        border: none;
+        color: var(--text-sub);
+        padding: 6px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+      }
+
+      .action-btn:hover {
+        background: #f1f5f9;
+        color: var(--text-main);
+      }
+
+      .action-btn.btn-save:hover {
+        background: #ecfdf5;
+        color: #059669;
+      }
+
+      .action-btn.btn-delete:hover {
+        background: #fef2f2;
+        color: var(--danger);
+      }
+
+      /* Empty State */
+      .empty-state {
+        text-align: center;
+        padding: 56px 24px;
+        color: var(--text-muted);
+      }
+
+      .empty-icon {
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 12px;
+        color: #cbd5e1;
+      }
+
+      .empty-state p {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--text-sub);
+      }
+
+      .empty-state span {
+        font-size: 13px;
+        color: var(--text-muted);
+        display: block;
+        margin-top: 4px;
+      }
+
+      /* Floating Action Button (FAB) - Circular con signo de + */
+      .fab-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background-color: var(--accent);
+        color: #ffffff;
+        border: none;
+        box-shadow: var(--fab-shadow);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s, box-shadow 0.2s;
+        outline: none;
+      }
+
+      .fab-btn:hover {
+        background-color: var(--accent-hover);
+        transform: scale(1.06);
+      }
+
+      .fab-btn:active {
+        transform: scale(0.96);
+      }
+
+      .fab-btn.is-active {
+        background-color: #334155;
+        transform: rotate(45deg);
+      }
+
+      .fab-btn.is-active:hover {
+        background-color: #1e293b;
+      }
+
+      .fab-btn svg {
+        width: 28px;
+        height: 28px;
+        stroke-width: 2.8;
+      }
+
+      /* SVG Icon Basics */
+      svg {
+        width: 17px;
+        height: 17px;
+        stroke-width: 2;
+        stroke: currentColor;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-wrapper">
+      <div class="notes-card" id="notes-app">
+        <!-- Card Header -->
+        <div class="card-header">
+          <div class="app-title-group">
+            <h1 id="header-title">Notas</h1>
           </div>
-
-          {/* Tabs: Principal & Completada */}
-          <div className="flex border-b border-slate-200 px-6 gap-5" role="tablist">
-            <button
-              id="tab-btn-principal"
-              type="button"
-              role="tab"
-              aria-selected={currentTab === 'principal'}
-              onClick={() => handleTabSwitch('principal')}
-              className={`relative py-3 px-1 text-[15px] font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
-                currentTab === 'principal'
-                  ? 'text-blue-600'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <span>Principal</span>
-              <span
-                id="badge-principal"
-                className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                  currentTab === 'principal'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {principalNotes.length}
-              </span>
-              {currentTab === 'principal' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
-              )}
-            </button>
-
-            <button
-              id="tab-btn-completada"
-              type="button"
-              role="tab"
-              aria-selected={currentTab === 'completada'}
-              onClick={() => handleTabSwitch('completada')}
-              className={`relative py-3 px-1 text-[15px] font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
-                currentTab === 'completada'
-                  ? 'text-blue-600'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <span>Completada</span>
-              <span
-                id="badge-completada"
-                className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                  currentTab === 'completada'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {completadaNotes.length}
-              </span>
-              {currentTab === 'completada' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
-              )}
-            </button>
+          <div class="storage-tag" id="storage-tag" title="Guardado automático en el navegador">
+            <span class="storage-dot"></span>
+            <span>localStorage</span>
           </div>
-
-          {/* Compact Note Input (Only enabled & visible in 'principal' tab) */}
-          {currentTab === 'principal' && (
-            <NoteInput
-              isOpen={isInputOpen}
-              onClose={() => setIsInputOpen(false)}
-              onSubmit={handleAddNote}
-            />
-          )}
-
-          {/* Notes List */}
-          {activeNotes.length > 0 ? (
-            <ul id="notes-list" className="divide-y divide-slate-100 py-1 min-h-[220px]">
-              {activeNotes.map((note) => (
-                <NoteItem
-                  key={note.id}
-                  note={note}
-                  currentTab={currentTab}
-                  isEditing={editingId === note.id}
-                  onToggle={handleToggleCompleted}
-                  onStartEdit={handleStartEdit}
-                  onSaveEdit={handleSaveEdit}
-                  onCancelEdit={handleCancelEdit}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </ul>
-          ) : (
-            /* Empty State */
-            <div id="empty-state" className="text-center py-14 px-6 min-h-[220px] flex flex-col items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3 text-slate-400">
-                {currentTab === 'principal' ? (
-                  <FileText className="w-6 h-6 stroke-[1.5]" />
-                ) : (
-                  <CheckCircle2 className="w-6 h-6 stroke-[1.5]" />
-                )}
-              </div>
-              <p id="empty-text" className="text-[15px] font-medium text-slate-700">
-                {currentTab === 'principal'
-                  ? 'No hay notas pendientes'
-                  : 'No hay notas completadas'}
-              </p>
-              <span id="empty-hint" className="text-sm text-slate-400 mt-1">
-                {currentTab === 'principal'
-                  ? 'Toca el botón flotante (+) para crear una nota'
-                  : 'Las notas que marques como terminadas aparecerán aquí'}
-              </span>
-              {currentTab === 'principal' && !isInputOpen && (
-                <button
-                  type="button"
-                  onClick={() => setIsInputOpen(true)}
-                  className="mt-4 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3.5 py-1.5 rounded-full transition-colors cursor-pointer"
-                >
-                  Escribir una nota
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* Floating Action Button (+):
-            ONLY shown in 'principal' tab as requested:
-            "Las notas solo se pueden crear en la pestaña principal" */}
-        {currentTab === 'principal' && (
-          <FloatingActionButton
-            isOpen={isInputOpen}
-            onClick={() => setIsInputOpen((prev) => !prev)}
-            ariaLabel={isInputOpen ? 'Cerrar campo de nota' : 'Crear nueva nota (+)'}
-          />
-        )}
+        <!-- 2 Tabs: Principal & Completada -->
+        <div class="tabs-bar" role="tablist">
+          <button class="tab-btn active" id="tab-btn-principal" type="button" role="tab" aria-selected="true">
+            <span>Principal</span>
+            <span class="tab-badge" id="badge-principal">0</span>
+          </button>
+          <button class="tab-btn" id="tab-btn-completada" type="button" role="tab" aria-selected="false">
+            <span>Completada</span>
+            <span class="tab-badge" id="badge-completada">0</span>
+          </button>
+        </div>
+
+        <!-- Add Note Input Bar: Compact, toggled by FAB, no Add button, saves on Enter -->
+        <div class="new-note-container" id="container-add-note">
+          <div class="input-wrapper">
+            <textarea
+              class="note-textarea"
+              id="input-new-note"
+              placeholder="Escribe una nota y presiona enter para guardar"
+              rows="1"
+            ></textarea>
+            <div class="input-controls">
+              <button type="button" class="btn-close-input" id="btn-close-input" title="Cerrar (Esc)" aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes List -->
+        <ul class="notes-list" id="notes-list"></ul>
+
+        <!-- Empty State Container -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" style="width: 42px; height: 42px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <p id="empty-text">No hay notas pendientes</p>
+          <span id="empty-hint">Usa el botón flotante (+) para agregar una nueva nota</span>
+        </div>
       </div>
-    </main>
-  );
-}
+    </div>
+
+    <!-- Botón Flotante Circular con signo de + (FAB) -->
+    <button
+      type="button"
+      class="fab-btn"
+      id="btn-fab-add"
+      aria-label="Crear nueva nota"
+      title="Crear nueva nota (+)"
+    >
+      <svg viewBox="0 0 24 24">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+
+    <!-- Application Script: Pure JavaScript, no external libraries required -->
+    <script>
+      (function() {
+        const STORAGE_KEY = 'remix_notes_storage_v2';
+
+        // Initial demo notes with linebreaks
+        const DEFAULT_NOTES = [
+          {
+            id: '1',
+            text: 'Revisar pendientes del día:\n- Responder correos\n- Actualizar informe',
+            completed: false,
+            createdAt: Date.now() - 3600000
+          },
+          {
+            id: '2',
+            text: 'Comprar café y frutas',
+            completed: false,
+            createdAt: Date.now() - 1800000
+          },
+          {
+            id: '3',
+            text: 'Nota de bienvenida terminada',
+            completed: true,
+            createdAt: Date.now() - 7200000
+          }
+        ];
+
+        // State
+        let notes = loadNotes();
+        let currentTab = 'principal'; // 'principal' | 'completada'
+        let editingId = null;
+        let isInputOpen = false;
+
+        function loadNotes() {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) {
+              saveNotes(DEFAULT_NOTES);
+              return [...DEFAULT_NOTES];
+            }
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [...DEFAULT_NOTES];
+          } catch (e) {
+            console.error('Error cargando notas de localStorage:', e);
+            return [...DEFAULT_NOTES];
+          }
+        }
+
+        function saveNotes(notesArray) {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(notesArray));
+          } catch (e) {
+            console.error('Error guardando en localStorage:', e);
+          }
+        }
+
+        // DOM Elements
+        const tabBtnPrincipal = document.getElementById('tab-btn-principal');
+        const tabBtnCompletada = document.getElementById('tab-btn-completada');
+        const badgePrincipal = document.getElementById('badge-principal');
+        const badgeCompletada = document.getElementById('badge-completada');
+        const containerAddNote = document.getElementById('container-add-note');
+        const textareaNewNote = document.getElementById('input-new-note');
+        const btnCloseInput = document.getElementById('btn-close-input');
+        const btnFabAdd = document.getElementById('btn-fab-add');
+        const notesList = document.getElementById('notes-list');
+        const emptyState = document.getElementById('empty-state');
+        const emptyText = document.getElementById('empty-text');
+        const emptyHint = document.getElementById('empty-hint');
+
+        // Toggle / Open / Close Note Input
+        function openNoteInput() {
+          if (currentTab !== 'principal') return;
+          isInputOpen = true;
+          containerAddNote.classList.add('open');
+          btnFabAdd.classList.add('is-active');
+          btnFabAdd.title = 'Cerrar campo de nota';
+          textareaNewNote.focus();
+        }
+
+        function closeNoteInput() {
+          isInputOpen = false;
+          containerAddNote.classList.remove('open');
+          btnFabAdd.classList.remove('is-active');
+          btnFabAdd.title = 'Crear nueva nota (+)';
+          textareaNewNote.value = '';
+          textareaNewNote.style.height = 'auto';
+        }
+
+        function toggleNoteInput() {
+          if (isInputOpen) {
+            closeNoteInput();
+          } else {
+            openNoteInput();
+          }
+        }
+
+        // FAB Click
+        btnFabAdd.addEventListener('click', toggleNoteInput);
+
+        // Close button inside input
+        btnCloseInput.addEventListener('click', closeNoteInput);
+
+        // Auto-expand textarea compactly
+        textareaNewNote.addEventListener('input', () => {
+          textareaNewNote.style.height = 'auto';
+          textareaNewNote.style.height = Math.min(textareaNewNote.scrollHeight, 120) + 'px';
+        });
+
+        // Tab Switching
+        tabBtnPrincipal.addEventListener('click', () => switchTab('principal'));
+        tabBtnCompletada.addEventListener('click', () => switchTab('completada'));
+
+        function switchTab(tab) {
+          currentTab = tab;
+          tabBtnPrincipal.classList.toggle('active', tab === 'principal');
+          tabBtnCompletada.classList.toggle('active', tab === 'completada');
+          tabBtnPrincipal.setAttribute('aria-selected', tab === 'principal');
+          tabBtnCompletada.setAttribute('aria-selected', tab === 'completada');
+          editingId = null;
+
+          // Las notas solo se pueden crear en la pestaña principal:
+          // Ocultar FAB y cerrar campo de creación al ir a Completada
+          if (tab === 'principal') {
+            btnFabAdd.style.display = 'flex';
+          } else {
+            closeNoteInput();
+            btnFabAdd.style.display = 'none';
+          }
+
+          render();
+        }
+
+        // Submit new note logic: triggers on Enter (Shift+Enter inserts newline)
+        function submitNewNote() {
+          const text = textareaNewNote.value.trim();
+          if (!text) return;
+
+          const newNote = {
+            id: 'note-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+            text: text,
+            completed: false,
+            createdAt: Date.now()
+          };
+
+          notes = [newNote, ...notes];
+          saveNotes(notes);
+          closeNoteInput();
+          render();
+        }
+
+        textareaNewNote.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            if (e.shiftKey) {
+              return; // permite salto de línea
+            }
+            e.preventDefault();
+            submitNewNote();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            closeNoteInput();
+          }
+        });
+
+        // Render function
+        function render() {
+          const isPrincipal = currentTab === 'principal';
+          const principalNotes = notes.filter(n => !n.completed);
+          const completadaNotes = notes.filter(n => n.completed);
+
+          badgePrincipal.textContent = principalNotes.length;
+          badgeCompletada.textContent = completadaNotes.length;
+
+          const currentNotes = isPrincipal ? principalNotes : completadaNotes;
+
+          if (currentNotes.length === 0) {
+            notesList.innerHTML = '';
+            emptyState.style.display = 'block';
+            if (isPrincipal) {
+              emptyText.textContent = 'No hay notas pendientes';
+              emptyHint.textContent = 'Presiona el botón (+) en la esquina inferior para crear una nota';
+            } else {
+              emptyText.textContent = 'No hay notas completadas';
+              emptyHint.textContent = 'Las notas que marques como completadas aparecerán aquí';
+            }
+            return;
+          }
+
+          emptyState.style.display = 'none';
+
+          notesList.innerHTML = currentNotes.map(note => {
+            const isEditing = editingId === note.id;
+            const escapedText = escapeHtml(note.text);
+
+            return `
+              <li class="note-item ${note.completed ? 'is-completed' : ''}" data-id="${note.id}" id="note-item-${note.id}">
+                <div class="note-left">
+                  <!-- Botón cuadrado de checkbox -->
+                  <button
+                    type="button"
+                    class="check-btn-square ${note.completed ? 'completed' : ''}"
+                    title="${note.completed ? 'Marcar como pendiente' : 'Marcar como completada'}"
+                    data-action="toggle"
+                    id="check-btn-${note.id}"
+                  >
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+
+                  ${isEditing ? `
+                    <div class="edit-container">
+                      <textarea
+                        class="edit-textarea"
+                        rows="2"
+                        data-action="edit-textarea"
+                        id="edit-textarea-${note.id}"
+                      >${escapedText}</textarea>
+                      <div class="edit-hint">Enter o Ctrl+Enter para guardar • Esc para cancelar</div>
+                    </div>
+                  ` : `
+                    <div
+                      class="note-content-text"
+                      id="note-text-${note.id}"
+                      ${isPrincipal ? 'data-action="start-edit" title="Doble clic para editar"' : ''}
+                    >${escapedText}</div>
+                  `}
+                </div>
+
+                <div class="note-actions">
+                  ${isPrincipal ? `
+                    ${isEditing ? `
+                      <button type="button" class="action-btn btn-save" data-action="save-edit" title="Guardar cambios" id="save-btn-${note.id}">
+                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                    ` : `
+                      <button type="button" class="action-btn" data-action="start-edit" title="Editar nota" id="edit-btn-${note.id}">
+                        <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      </button>
+                    `}
+                  ` : `
+                    <button type="button" class="action-btn btn-delete" data-action="delete" title="Eliminar nota definitivamente" id="delete-btn-${note.id}">
+                      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  `}
+                </div>
+              </li>
+            `;
+          }).join('');
+
+          // Si hay una nota en edición, enfocar su textarea
+          if (editingId) {
+            const editTextarea = notesList.querySelector('.edit-textarea');
+            if (editTextarea) {
+              editTextarea.focus();
+              editTextarea.setSelectionRange(editTextarea.value.length, editTextarea.value.length);
+              editTextarea.style.height = 'auto';
+              editTextarea.style.height = Math.min(editTextarea.scrollHeight, 240) + 'px';
+            }
+          }
+        }
+
+        // Delegación de eventos en la lista de notas
+        notesList.addEventListener('click', (e) => {
+          const item = e.target.closest('.note-item');
+          if (!item) return;
+          const noteId = item.getAttribute('data-id');
+          const targetAction = e.target.closest('[data-action]');
+          const action = targetAction ? targetAction.getAttribute('data-action') : null;
+
+          // Toggle completed status
+          if (action === 'toggle') {
+            notes = notes.map(n => n.id === noteId ? { ...n, completed: !n.completed } : n);
+            saveNotes(notes);
+            render();
+            return;
+          }
+
+          // Delete note (in completada tab)
+          if (action === 'delete') {
+            notes = notes.filter(n => n.id !== noteId);
+            if (editingId === noteId) editingId = null;
+            saveNotes(notes);
+            render();
+            return;
+          }
+
+          // Start edit
+          if (action === 'start-edit' && currentTab === 'principal' && !editingId) {
+            editingId = noteId;
+            render();
+            return;
+          }
+
+          // Save edit
+          if (action === 'save-edit') {
+            commitEdit(noteId, item);
+            return;
+          }
+        });
+
+        // Double click para editar
+        notesList.addEventListener('dblclick', (e) => {
+          if (currentTab !== 'principal') return;
+          const item = e.target.closest('.note-item');
+          if (!item || editingId) return;
+          editingId = item.getAttribute('data-id');
+          render();
+        });
+
+        // Shortcuts en el textarea de edición
+        notesList.addEventListener('keydown', (e) => {
+          if (e.target.classList.contains('edit-textarea')) {
+            const item = e.target.closest('.note-item');
+            const noteId = item.getAttribute('data-id');
+
+            if (e.key === 'Enter') {
+              if (e.shiftKey) return; // salto de línea
+              e.preventDefault();
+              commitEdit(noteId, item);
+            } else if (e.key === 'Escape') {
+              editingId = null;
+              render();
+            }
+          }
+        });
+
+        // Auto-expand en textarea de edición
+        notesList.addEventListener('input', (e) => {
+          if (e.target.classList.contains('edit-textarea')) {
+            e.target.style.height = 'auto';
+            e.target.style.height = Math.min(e.target.scrollHeight, 240) + 'px';
+          }
+        });
+
+        function commitEdit(noteId, item) {
+          const editTextarea = item.querySelector('.edit-textarea');
+          if (!editTextarea) return;
+          const newText = editTextarea.value.trim();
+          if (newText) {
+            notes = notes.map(n => n.id === noteId ? { ...n, text: newText } : n);
+            saveNotes(notes);
+          }
+          editingId = null;
+          render();
+        }
+
+        function escapeHtml(str) {
+          if (!str) return '';
+          return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        }
+
+        // Render inicial
+        render();
+      })();
+    </script>
+  </body>
+</html>
