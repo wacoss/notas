@@ -1058,14 +1058,20 @@
 
           // Start edit al presionar sobre la nota
           if ((action === 'start-edit' || (!action && e.target.closest('.note-left') && !e.target.closest('.check-btn-square'))) && currentTab === 'principal') {
-            if (editingId && editingId !== noteId) {
+            // Si ya se estaba editando una nota y se presiona otra:
+            // La acción que debe ocurrir es finalizar la edición (guardar y salir), NO abrir la segunda nota.
+            if (editingId) {
               commitEdit(editingId);
+              return;
             }
-            if (!editingId) {
-              editingId = noteId;
-              e.stopPropagation();
-              render();
+            // Si la edición acaba de finalizar (por ejemplo en móvil al tocar fuera o cerrar teclado):
+            // prevenir abrir la segunda nota con ese mismo toque.
+            if (Date.now() - lastEditCommitTime < 450) {
+              return;
             }
+            editingId = noteId;
+            e.stopPropagation();
+            render();
             return;
           }
         });
@@ -1079,7 +1085,7 @@
               if (editingId === noteId) {
                 commitEdit(noteId, item);
               }
-            }, 80);
+            }, 50);
           }
         });
 
@@ -1103,11 +1109,20 @@
           }
         });
 
+        // En pantallas táctiles (móvil), detectar toque fuera para cerrar edición de inmediato
+        document.addEventListener('touchstart', (e) => {
+          if (editingId) {
+            if (!e.target.closest('.edit-container')) {
+              commitEdit(editingId);
+            }
+          }
+        }, { passive: true });
+
         // Double click para editar
         notesList.addEventListener('dblclick', (e) => {
           if (currentTab !== 'principal') return;
           const item = e.target.closest('.note-item');
-          if (!item || editingId) return;
+          if (!item || editingId || Date.now() - lastEditCommitTime < 450) return;
           editingId = item.getAttribute('data-id');
           render();
         });
@@ -1144,7 +1159,9 @@
           }
         });
 
+        let lastEditCommitTime = 0;
         function cancelEdit() {
+          lastEditCommitTime = Date.now();
           editingId = null;
           render();
         }
@@ -1153,6 +1170,7 @@
         function commitEdit(noteId, item) {
           if (!editingId || isCommitting) return;
           isCommitting = true;
+          lastEditCommitTime = Date.now();
           const targetNoteId = noteId || editingId;
           const targetItem = item || document.getElementById('note-item-' + targetNoteId);
           const editTextarea = targetItem ? targetItem.querySelector('.edit-textarea') : document.getElementById('edit-textarea-' + targetNoteId);
