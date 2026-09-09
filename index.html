@@ -150,6 +150,21 @@
         color: var(--accent);
       }
 
+      /* Estilo al arrastrar una nota sobre la pestaña Archivado */
+      .tab-btn.drop-target-active {
+        color: var(--accent) !important;
+        background-color: #eff6ff !important;
+        border-radius: 8px;
+        box-shadow: 0 0 0 2px var(--accent), 0 4px 12px rgba(37, 99, 235, 0.25);
+        transform: scale(1.05);
+        transition: all 0.12s ease;
+      }
+
+      .tab-btn.drop-target-active .tab-badge {
+        background-color: var(--accent) !important;
+        color: #ffffff !important;
+      }
+
       /* Note Input Area - Compact & Controlled by Floating Action Button */
       .new-note-container {
         padding: 12px 24px;
@@ -277,7 +292,8 @@
         padding: 16px 24px;
         gap: 14px;
         border-bottom: 1px solid #f1f5f9;
-        transition: background-color 0.15s ease;
+        transition: background-color 0.15s ease, opacity 0.15s ease;
+        position: relative;
       }
 
       .note-item:last-child {
@@ -288,54 +304,107 @@
         background-color: #f8fafc;
       }
 
+      .note-item.can-drag {
+        cursor: grab;
+      }
+
+      .note-item.can-drag:active {
+        cursor: grabbing;
+      }
+
+      .note-item.is-dragging {
+        opacity: 0.35;
+        background-color: #eff6ff;
+        border-color: transparent;
+      }
+
+      /* Indicador de posición de inserción tipo Kanban */
+      .note-item.drag-over-top::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: 14px;
+        right: 14px;
+        height: 3px;
+        background-color: var(--accent);
+        border-radius: 2px;
+        z-index: 10;
+      }
+
+      .note-item.drag-over-bottom::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 14px;
+        right: 14px;
+        height: 3px;
+        background-color: var(--accent);
+        border-radius: 2px;
+        z-index: 10;
+      }
+
       .note-left {
         display: flex;
         align-items: flex-start;
-        gap: 14px;
+        gap: 12px;
         flex: 1;
         min-width: 0;
       }
 
-      /* Square Checkbox Button (Botón Cuadrado) */
-      .check-btn-square {
-        width: 22px;
-        height: 22px;
-        border-radius: 6px;
-        border: 2px solid var(--border-hover);
-        background: #ffffff;
-        cursor: pointer;
+      /* Drag handle icon para arrastre vertical */
+      .drag-handle {
+        width: 20px;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
+        color: #94a3b8;
+        cursor: grab;
         flex-shrink: 0;
-        transition: all 0.15s ease;
-        padding: 0;
-        margin-top: 2px;
+        margin-top: 1px;
+        touch-action: none;
+        border-radius: 4px;
+        user-select: none;
+        transition: color 0.15s ease, background-color 0.15s ease;
       }
 
-      .check-btn-square:hover {
-        border-color: var(--accent);
+      .drag-handle svg {
+        width: 16px;
+        height: 16px;
       }
 
-      .check-btn-square.completed {
-        background-color: #10b981;
-        border-color: #10b981;
-        color: #ffffff;
+      .note-item:hover .drag-handle {
+        color: #64748b;
       }
 
-      .check-btn-square svg {
-        width: 14px;
-        height: 14px;
-        stroke-width: 3;
-        stroke: currentColor;
-        fill: none;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        display: none;
+      .drag-handle:hover {
+        color: var(--accent);
+        background-color: #eff6ff;
       }
 
-      .check-btn-square.completed svg {
-        display: block;
+      .drag-handle:active {
+        cursor: grabbing;
+      }
+
+      /* Touch drag ghost flotante en móvil */
+      .touch-drag-ghost {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        background: #ffffff;
+        border: 1.5px solid var(--accent);
+        border-radius: 10px;
+        box-shadow: 0 12px 28px -4px rgba(37, 99, 235, 0.35), 0 6px 12px -3px rgba(0, 0, 0, 0.1);
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-main);
+        max-width: 280px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transform: translate(-50%, -50%);
+        opacity: 0.96;
       }
 
       /* Content with HIGHER FONT WEIGHT (Peso aumentado de las tareas) */
@@ -409,6 +478,7 @@
         align-items: center;
         justify-content: center;
         transition: all 0.15s ease;
+        touch-action: manipulation;
       }
 
       .action-btn:hover {
@@ -514,23 +584,16 @@
         stroke-linejoin: round;
       }
 
-      /* Delete Confirmation Modal */
+      /* Delete Confirmation Modal - Instantáneo sin retardos ni animaciones */
       .modal-backdrop {
         position: fixed;
         inset: 0;
-        background-color: rgba(15, 23, 42, 0.45);
-        backdrop-filter: blur(2px);
+        background-color: rgba(15, 23, 42, 0.5);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 2000;
         padding: 16px;
-        animation: fadeInModal 0.15s ease-out;
-      }
-
-      @keyframes fadeInModal {
-        from { opacity: 0; }
-        to { opacity: 1; }
       }
 
       .modal-box {
@@ -542,18 +605,6 @@
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         border: 1px solid var(--border-color);
         text-align: center;
-        animation: scaleInModal 0.18s ease-out;
-      }
-
-      @keyframes scaleInModal {
-        from {
-          opacity: 0;
-          transform: scale(0.94);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
       }
 
       .modal-icon {
@@ -965,21 +1016,28 @@
           notesList.innerHTML = currentNotes.map(note => {
             const isEditing = editingId === note.id;
             const escapedText = escapeHtml(note.text);
+            const canDrag = isPrincipal && !isEditing;
 
             return `
-              <li class="note-item ${note.completed ? 'is-completed' : ''}" data-id="${note.id}" id="note-item-${note.id}">
+              <li
+                class="note-item ${canDrag ? 'can-drag' : ''} ${note.completed ? 'is-completed' : ''}"
+                data-id="${note.id}"
+                id="note-item-${note.id}"
+                draggable="${canDrag ? 'true' : 'false'}"
+              >
                 <div class="note-left">
                   ${isPrincipal ? `
-                    <!-- Botón cuadrado de checkbox (solo en pestaña Principal) -->
-                    <button
-                      type="button"
-                      class="check-btn-square ${note.completed ? 'completed' : ''}"
-                      title="Archivar nota"
-                      data-action="toggle"
-                      id="check-btn-${note.id}"
-                    >
-                      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                    </button>
+                    <!-- Tirador de arrastre estilo Kanban (reemplaza a la casilla de verificación) -->
+                    <div class="drag-handle" title="Arrastra para reordenar arriba/abajo o hacia Archivado" data-action="drag-handle" aria-label="Arrastrar nota">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="9" cy="6" r="1.4" fill="currentColor"/>
+                        <circle cx="9" cy="12" r="1.4" fill="currentColor"/>
+                        <circle cx="9" cy="18" r="1.4" fill="currentColor"/>
+                        <circle cx="15" cy="6" r="1.4" fill="currentColor"/>
+                        <circle cx="15" cy="12" r="1.4" fill="currentColor"/>
+                        <circle cx="15" cy="18" r="1.4" fill="currentColor"/>
+                      </svg>
+                    </div>
                   ` : ''}
 
                   ${isEditing ? `
@@ -1028,19 +1086,254 @@
           }
         }
 
+        // --- LÓGICA DE ARRASTRE Y REORDENAMIENTO TIPO KANBAN ---
+        let draggedNoteId = null;
+        let lastDragEndTime = 0;
+
+        function clearDragIndicators() {
+          const items = notesList.querySelectorAll('.note-item');
+          items.forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+        }
+
+        function archiveNote(id) {
+          notes = notes.map(n => n.id === id ? { ...n, completed: true } : n);
+          saveNotes(notes);
+          render();
+        }
+
+        function reorderPrincipalNotes(sourceId, targetId, insertBefore) {
+          if (!sourceId || !targetId || sourceId === targetId) return;
+
+          const sourceIdx = notes.findIndex(n => n.id === sourceId);
+          if (sourceIdx === -1) return;
+          const [movedNote] = notes.splice(sourceIdx, 1);
+
+          const targetIdx = notes.findIndex(n => n.id === targetId);
+          if (targetIdx === -1) {
+            notes.push(movedNote);
+          } else {
+            const finalIndex = insertBefore ? targetIdx : targetIdx + 1;
+            notes.splice(finalIndex, 0, movedNote);
+          }
+
+          saveNotes(notes);
+          render();
+        }
+
+        // HTML5 Drag & Drop (Desktop)
+        notesList.addEventListener('dragstart', (e) => {
+          if (currentTab !== 'principal' || editingId) {
+            e.preventDefault();
+            return;
+          }
+          const item = e.target.closest('.note-item');
+          if (!item) return;
+
+          draggedNoteId = item.getAttribute('data-id');
+          e.dataTransfer.setData('text/plain', draggedNoteId);
+          e.dataTransfer.effectAllowed = 'move';
+
+          setTimeout(() => {
+            if (item) item.classList.add('is-dragging');
+          }, 0);
+        });
+
+        notesList.addEventListener('dragover', (e) => {
+          if (!draggedNoteId || currentTab !== 'principal') return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+
+          const item = e.target.closest('.note-item');
+          if (!item || item.getAttribute('data-id') === draggedNoteId) {
+            clearDragIndicators();
+            return;
+          }
+
+          const rect = item.getBoundingClientRect();
+          const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
+          clearDragIndicators();
+          if (isTopHalf) {
+            item.classList.add('drag-over-top');
+          } else {
+            item.classList.add('drag-over-bottom');
+          }
+        });
+
+        notesList.addEventListener('dragleave', (e) => {
+          const item = e.target.closest('.note-item');
+          if (item && !item.contains(e.relatedTarget)) {
+            item.classList.remove('drag-over-top', 'drag-over-bottom');
+          }
+        });
+
+        notesList.addEventListener('drop', (e) => {
+          if (!draggedNoteId || currentTab !== 'principal') return;
+          e.preventDefault();
+          const item = e.target.closest('.note-item');
+          if (item && item.getAttribute('data-id') !== draggedNoteId) {
+            const targetId = item.getAttribute('data-id');
+            const rect = item.getBoundingClientRect();
+            const insertBefore = (e.clientY - rect.top) < (rect.height / 2);
+            reorderPrincipalNotes(draggedNoteId, targetId, insertBefore);
+          }
+          clearDragIndicators();
+          lastDragEndTime = Date.now();
+        });
+
+        notesList.addEventListener('dragend', () => {
+          draggedNoteId = null;
+          lastDragEndTime = Date.now();
+          clearDragIndicators();
+          tabBtnCompletada.classList.remove('drop-target-active');
+          const draggingItem = notesList.querySelector('.is-dragging');
+          if (draggingItem) draggingItem.classList.remove('is-dragging');
+        });
+
+        // Arrastrar sobre la pestaña "Archivado" para mover la nota
+        tabBtnCompletada.addEventListener('dragover', (e) => {
+          if (!draggedNoteId || currentTab !== 'principal') return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          tabBtnCompletada.classList.add('drop-target-active');
+          clearDragIndicators();
+        });
+
+        tabBtnCompletada.addEventListener('dragleave', (e) => {
+          if (!tabBtnCompletada.contains(e.relatedTarget)) {
+            tabBtnCompletada.classList.remove('drop-target-active');
+          }
+        });
+
+        tabBtnCompletada.addEventListener('drop', (e) => {
+          if (!draggedNoteId || currentTab !== 'principal') return;
+          e.preventDefault();
+          tabBtnCompletada.classList.remove('drop-target-active');
+          const idToArchive = draggedNoteId;
+          draggedNoteId = null;
+          archiveNote(idToArchive);
+          lastDragEndTime = Date.now();
+        });
+
+        // Soporte de Arrastre Táctil (Móvil)
+        let touchDragId = null;
+        let touchGhostEl = null;
+        let isTouchDragging = false;
+
+        document.addEventListener('touchstart', (e) => {
+          if (currentTab !== 'principal' || editingId) return;
+          const handle = e.target.closest('.drag-handle');
+          if (!handle) return;
+
+          const item = handle.closest('.note-item');
+          if (!item) return;
+
+          const noteId = item.getAttribute('data-id');
+          touchDragId = noteId;
+          isTouchDragging = true;
+
+          const touch = e.touches[0];
+          const note = notes.find(n => n.id === noteId);
+          if (note) {
+            touchGhostEl = document.createElement('div');
+            touchGhostEl.className = 'touch-drag-ghost';
+            touchGhostEl.textContent = note.text.split('\n')[0] || 'Nota';
+            touchGhostEl.style.left = touch.clientX + 'px';
+            touchGhostEl.style.top = (touch.clientY - 25) + 'px';
+            document.body.appendChild(touchGhostEl);
+          }
+
+          item.classList.add('is-dragging');
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+          if (!isTouchDragging || !touchDragId) return;
+          if (e.cancelable) e.preventDefault();
+
+          const touch = e.touches[0];
+          if (touchGhostEl) {
+            touchGhostEl.style.left = touch.clientX + 'px';
+            touchGhostEl.style.top = (touch.clientY - 25) + 'px';
+          }
+
+          const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (!elUnder) return;
+
+          if (tabBtnCompletada.contains(elUnder)) {
+            tabBtnCompletada.classList.add('drop-target-active');
+            clearDragIndicators();
+            return;
+          } else {
+            tabBtnCompletada.classList.remove('drop-target-active');
+          }
+
+          const item = elUnder.closest('.note-item');
+          if (item && item.getAttribute('data-id') !== touchDragId) {
+            const rect = item.getBoundingClientRect();
+            const isTopHalf = (touch.clientY - rect.top) < (rect.height / 2);
+            clearDragIndicators();
+            if (isTopHalf) {
+              item.classList.add('drag-over-top');
+            } else {
+              item.classList.add('drag-over-bottom');
+            }
+          } else {
+            clearDragIndicators();
+          }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+          if (!isTouchDragging || !touchDragId) return;
+
+          const noteId = touchDragId;
+          isTouchDragging = false;
+          touchDragId = null;
+          lastDragEndTime = Date.now();
+
+          if (touchGhostEl) {
+            touchGhostEl.remove();
+            touchGhostEl = null;
+          }
+
+          const draggingItem = notesList.querySelector('.is-dragging');
+          if (draggingItem) draggingItem.classList.remove('is-dragging');
+
+          const touch = e.changedTouches[0];
+          const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+          clearDragIndicators();
+
+          if (elUnder && tabBtnCompletada.contains(elUnder)) {
+            tabBtnCompletada.classList.remove('drop-target-active');
+            archiveNote(noteId);
+            return;
+          }
+          tabBtnCompletada.classList.remove('drop-target-active');
+
+          if (elUnder) {
+            const item = elUnder.closest('.note-item');
+            if (item && item.getAttribute('data-id') !== noteId) {
+              const targetId = item.getAttribute('data-id');
+              const rect = item.getBoundingClientRect();
+              const insertBefore = (touch.clientY - rect.top) < (rect.height / 2);
+              reorderPrincipalNotes(noteId, targetId, insertBefore);
+            }
+          }
+        });
+
         // Delegación de eventos en la lista de notas
         notesList.addEventListener('click', (e) => {
+          // Si acaba de terminar un arrastre, no abrir edición
+          if (Date.now() - lastDragEndTime < 450) {
+            return;
+          }
+
           const item = e.target.closest('.note-item');
           if (!item) return;
           const noteId = item.getAttribute('data-id');
           const targetAction = e.target.closest('[data-action]');
           const action = targetAction ? targetAction.getAttribute('data-action') : null;
 
-          // Toggle completed status
-          if (action === 'toggle') {
-            notes = notes.map(n => n.id === noteId ? { ...n, completed: !n.completed } : n);
-            saveNotes(notes);
-            render();
+          // Si se hace clic sobre el tirador de arrastre, no iniciar edición
+          if (e.target.closest('.drag-handle')) {
             return;
           }
 
@@ -1058,8 +1351,8 @@
             return;
           }
 
-          // Start edit al presionar sobre la nota
-          if ((action === 'start-edit' || (!action && e.target.closest('.note-left') && !e.target.closest('.check-btn-square'))) && currentTab === 'principal') {
+          // Start edit al presionar sobre el texto de la nota
+          if ((action === 'start-edit' || (!action && e.target.closest('.note-left') && !e.target.closest('.drag-handle'))) && currentTab === 'principal') {
             // Si el campo de creación de nueva nota está abierto y se presiona una nota:
             // la acción que debe ocurrir es finalizar/guardar la creación, NO abrir la nota presionada.
             if (isInputOpen) {
