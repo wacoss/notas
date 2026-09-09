@@ -1349,14 +1349,20 @@
           lastDragEndTime = Date.now();
         });
 
-        // Soporte de Arrastre Táctil (Móvil)
+        // Soporte de Arrastre Táctil (Móvil) con pulsación prolongada mínima (~140ms)
         let touchDragId = null;
         let isTouchActive = false;
         let touchMoved = false;
         let touchStartY = 0;
         let touchStartX = 0;
+        let touchTimer = null;
+        const MIN_LONG_PRESS_MS = 140; // Tiempo mínimo posible para evitar interferir con scroll o toques rápidos
 
         function cleanupTouchDrag() {
+          if (touchTimer) {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+          }
           touchDragId = null;
           isTouchActive = false;
           touchMoved = false;
@@ -1385,36 +1391,43 @@
           }
           if (!handle) return;
 
-          // Cancelar comportamiento nativo de inmediato:
-          // Esto elimina la espera por defecto de 500ms que imponen los navegadores móviles (Android/iOS)
-          // al buscar pulsaciones prolongadas (long-press) o scroll.
-          if (e.cancelable) e.preventDefault();
-
           cleanupTouchDrag();
 
           const noteId = item.getAttribute('data-id');
           touchDragId = noteId;
-          isTouchActive = true;
+          isTouchActive = false;
           touchMoved = false;
 
           const touch = e.touches[0];
           touchStartX = touch.clientX;
           touchStartY = touch.clientY;
 
-          // Activación visual instantánea (0ms de retraso): entra en estado de arrastre inmediatamente
-          item.classList.add('is-dragging');
-          if (navigator.vibrate) {
-            try { navigator.vibrate(10); } catch (_) {}
-          }
-        }, { passive: false });
+          // Iniciar temporizador de pulsación prolongada reducido al mínimo posible (140ms)
+          touchTimer = setTimeout(() => {
+            isTouchActive = true;
+            item.classList.add('is-dragging');
+            if (navigator.vibrate) {
+              try { navigator.vibrate(15); } catch (_) {}
+            }
+          }, MIN_LONG_PRESS_MS);
+        }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
-          if (!isTouchActive || !touchDragId) return;
-
-          // Prevenir pull-to-refresh y scroll de inmediato al mover
-          if (e.cancelable) e.preventDefault();
+          if (!touchDragId) return;
 
           const touch = e.touches[0];
+          const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+
+          // Si aún no se activó la pulsación prolongada mínima y el usuario mueve el dedo (ej. scroll de página), cancelar
+          if (!isTouchActive) {
+            if (dist > 8) {
+              cleanupTouchDrag();
+            }
+            return;
+          }
+
+          // Con la pulsación prolongada activa, prevenir pull-to-refresh y scroll para mover la nota
+          if (e.cancelable) e.preventDefault();
           touchMoved = true;
 
           const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -1444,6 +1457,11 @@
         }, { passive: false });
 
         document.addEventListener('touchend', (e) => {
+          if (touchTimer) {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+          }
+
           if (!isTouchActive || !touchDragId) {
             cleanupTouchDrag();
             return;
