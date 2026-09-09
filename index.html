@@ -742,6 +742,7 @@
         let currentTab = 'principal'; // 'principal' | 'completada'
         let editingId = null;
         let isInputOpen = false;
+        let lastEditCommitTime = 0;
 
         function loadNotes() {
           try {
@@ -840,6 +841,7 @@
         }
 
         function closeNoteInput() {
+          lastEditCommitTime = Date.now();
           isInputOpen = false;
           containerAddNote.classList.remove('open');
           btnFabAdd.classList.remove('is-active');
@@ -1058,17 +1060,32 @@
 
           // Start edit al presionar sobre la nota
           if ((action === 'start-edit' || (!action && e.target.closest('.note-left') && !e.target.closest('.check-btn-square'))) && currentTab === 'principal') {
+            // Si el campo de creación de nueva nota está abierto y se presiona una nota:
+            // la acción que debe ocurrir es finalizar/guardar la creación, NO abrir la nota presionada.
+            if (isInputOpen) {
+              lastEditCommitTime = Date.now();
+              const text = textareaNewNote.value.trim();
+              if (text) {
+                submitNewNote();
+              } else {
+                closeNoteInput();
+              }
+              return;
+            }
+
             // Si ya se estaba editando una nota y se presiona otra:
             // La acción que debe ocurrir es finalizar la edición (guardar y salir), NO abrir la segunda nota.
             if (editingId) {
               commitEdit(editingId);
               return;
             }
-            // Si la edición acaba de finalizar (por ejemplo en móvil al tocar fuera o cerrar teclado):
+
+            // Si la edición o creación acaba de finalizar (por ejemplo en móvil al tocar fuera o cerrar teclado):
             // prevenir abrir la segunda nota con ese mismo toque.
             if (Date.now() - lastEditCommitTime < 450) {
               return;
             }
+
             editingId = noteId;
             e.stopPropagation();
             render();
@@ -1109,11 +1126,22 @@
           }
         });
 
-        // En pantallas táctiles (móvil), detectar toque fuera para cerrar edición de inmediato
+        // En pantallas táctiles (móvil), detectar toque fuera para cerrar edición o creación de inmediato
         document.addEventListener('touchstart', (e) => {
           if (editingId) {
             if (!e.target.closest('.edit-container')) {
               commitEdit(editingId);
+            }
+          }
+          if (isInputOpen) {
+            if (!e.target.closest('#container-add-note') && !e.target.closest('#btn-fab-add')) {
+              lastEditCommitTime = Date.now();
+              const text = textareaNewNote.value.trim();
+              if (text) {
+                submitNewNote();
+              } else {
+                closeNoteInput();
+              }
             }
           }
         }, { passive: true });
@@ -1122,7 +1150,7 @@
         notesList.addEventListener('dblclick', (e) => {
           if (currentTab !== 'principal') return;
           const item = e.target.closest('.note-item');
-          if (!item || editingId || Date.now() - lastEditCommitTime < 450) return;
+          if (!item || editingId || isInputOpen || Date.now() - lastEditCommitTime < 450) return;
           editingId = item.getAttribute('data-id');
           render();
         });
@@ -1159,7 +1187,6 @@
           }
         });
 
-        let lastEditCommitTime = 0;
         function cancelEdit() {
           lastEditCommitTime = Date.now();
           editingId = null;
