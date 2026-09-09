@@ -386,26 +386,6 @@
         cursor: grabbing;
       }
 
-      /* Touch drag ghost flotante en móvil */
-      .touch-drag-ghost {
-        position: fixed;
-        pointer-events: none;
-        z-index: 9999;
-        background: #ffffff;
-        border: 1.5px solid var(--accent);
-        border-radius: 10px;
-        box-shadow: 0 12px 28px -4px rgba(37, 99, 235, 0.35), 0 6px 12px -3px rgba(0, 0, 0, 0.1);
-        padding: 10px 16px;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-main);
-        max-width: 280px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        transform: translate(-50%, -50%);
-        opacity: 0.96;
-      }
 
       /* Content with HIGHER FONT WEIGHT (Peso aumentado de las tareas) */
       .note-content-text {
@@ -1216,10 +1196,26 @@
 
         // Soporte de Arrastre Táctil (Móvil)
         let touchDragId = null;
-        let touchGhostEl = null;
-        let isTouchDragging = false;
+        let isTouchActive = false;
+        let touchMoved = false;
+        let touchStartY = 0;
+        let touchStartX = 0;
+
+        function cleanupTouchDrag() {
+          touchDragId = null;
+          isTouchActive = false;
+          touchMoved = false;
+          clearDragIndicators();
+          tabBtnCompletada.classList.remove('drop-target-active');
+          const draggingItem = notesList.querySelector('.is-dragging');
+          if (draggingItem) draggingItem.classList.remove('is-dragging');
+          // Eliminar cualquier elemento residual si existiera
+          document.querySelectorAll('.touch-drag-ghost').forEach(el => el.remove());
+        }
 
         document.addEventListener('touchstart', (e) => {
+          cleanupTouchDrag();
+
           if (currentTab !== 'principal' || editingId) return;
           const handle = e.target.closest('.drag-handle');
           if (!handle) return;
@@ -1229,31 +1225,30 @@
 
           const noteId = item.getAttribute('data-id');
           touchDragId = noteId;
-          isTouchDragging = true;
+          isTouchActive = true;
+          touchMoved = false;
 
           const touch = e.touches[0];
-          const note = notes.find(n => n.id === noteId);
-          if (note) {
-            touchGhostEl = document.createElement('div');
-            touchGhostEl.className = 'touch-drag-ghost';
-            touchGhostEl.textContent = note.text.split('\n')[0] || 'Nota';
-            touchGhostEl.style.left = touch.clientX + 'px';
-            touchGhostEl.style.top = (touch.clientY - 25) + 'px';
-            document.body.appendChild(touchGhostEl);
-          }
-
-          item.classList.add('is-dragging');
-        }, { passive: false });
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+        }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
-          if (!isTouchDragging || !touchDragId) return;
-          if (e.cancelable) e.preventDefault();
+          if (!isTouchActive || !touchDragId) return;
 
           const touch = e.touches[0];
-          if (touchGhostEl) {
-            touchGhostEl.style.left = touch.clientX + 'px';
-            touchGhostEl.style.top = (touch.clientY - 25) + 'px';
+          const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+
+          // Activar arrastre solo tras mover el dedo más de 6px para evitar activación en simple toque
+          if (!touchMoved && dist > 6) {
+            touchMoved = true;
+            const item = notesList.querySelector(`[data-id="${touchDragId}"]`);
+            if (item) item.classList.add('is-dragging');
           }
+
+          if (!touchMoved) return;
+
+          if (e.cancelable) e.preventDefault();
 
           const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
           if (!elUnder) return;
@@ -1282,41 +1277,47 @@
         }, { passive: false });
 
         document.addEventListener('touchend', (e) => {
-          if (!isTouchDragging || !touchDragId) return;
-
-          const noteId = touchDragId;
-          isTouchDragging = false;
-          touchDragId = null;
-          lastDragEndTime = Date.now();
-
-          if (touchGhostEl) {
-            touchGhostEl.remove();
-            touchGhostEl = null;
-          }
-
-          const draggingItem = notesList.querySelector('.is-dragging');
-          if (draggingItem) draggingItem.classList.remove('is-dragging');
-
-          const touch = e.changedTouches[0];
-          const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
-          clearDragIndicators();
-
-          if (elUnder && tabBtnCompletada.contains(elUnder)) {
-            tabBtnCompletada.classList.remove('drop-target-active');
-            archiveNote(noteId);
+          if (!isTouchActive || !touchDragId) {
+            cleanupTouchDrag();
             return;
           }
-          tabBtnCompletada.classList.remove('drop-target-active');
 
-          if (elUnder) {
-            const item = elUnder.closest('.note-item');
-            if (item && item.getAttribute('data-id') !== noteId) {
-              const targetId = item.getAttribute('data-id');
-              const rect = item.getBoundingClientRect();
-              const insertBefore = (touch.clientY - rect.top) < (rect.height / 2);
-              reorderPrincipalNotes(noteId, targetId, insertBefore);
+          const noteId = touchDragId;
+          const wasMoved = touchMoved;
+          lastDragEndTime = Date.now();
+
+          if (wasMoved && e.changedTouches && e.changedTouches.length > 0) {
+            const touch = e.changedTouches[0];
+            const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+
+            if (elUnder && tabBtnCompletada.contains(elUnder)) {
+              cleanupTouchDrag();
+              archiveNote(noteId);
+              return;
+            }
+
+            if (elUnder) {
+              const item = elUnder.closest('.note-item');
+              if (item && item.getAttribute('data-id') !== noteId) {
+                const targetId = item.getAttribute('data-id');
+                const rect = item.getBoundingClientRect();
+                const insertBefore = (touch.clientY - rect.top) < (rect.height / 2);
+                cleanupTouchDrag();
+                reorderPrincipalNotes(noteId, targetId, insertBefore);
+                return;
+              }
             }
           }
+
+          cleanupTouchDrag();
+        });
+
+        document.addEventListener('touchcancel', () => {
+          cleanupTouchDrag();
+        });
+
+        window.addEventListener('blur', () => {
+          cleanupTouchDrag();
         });
 
         // Delegación de eventos en la lista de notas
