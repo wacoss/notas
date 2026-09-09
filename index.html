@@ -401,18 +401,22 @@
 
       /* Drag handle icon para arrastre vertical */
       .drag-handle {
-        width: 20px;
-        height: 24px;
+        width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #94a3b8;
         cursor: grab;
         flex-shrink: 0;
-        margin-top: 1px;
+        margin-top: -2px;
+        margin-left: -6px;
+        margin-right: -2px;
         touch-action: none;
-        border-radius: 4px;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
         user-select: none;
+        border-radius: 6px;
         transition: color 0.15s ease, background-color 0.15s ease;
       }
 
@@ -1365,14 +1369,28 @@
         }
 
         document.addEventListener('touchstart', (e) => {
-          cleanupTouchDrag();
-
           if (currentTab !== 'principal' || editingId) return;
-          const handle = e.target.closest('.drag-handle');
+
+          let handle = e.target.closest('.drag-handle');
+          const item = e.target.closest('.note-item');
+          if (!item) return;
+
+          // Detectar si el toque ocurrió en el tirador o en la zona izquierda del tirador (primeros 50px de la nota)
+          if (!handle) {
+            const touch = e.touches[0];
+            const rect = item.getBoundingClientRect();
+            if ((touch.clientX - rect.left) <= 50 && !e.target.closest('.action-btn')) {
+              handle = item.querySelector('.drag-handle');
+            }
+          }
           if (!handle) return;
 
-          const item = handle.closest('.note-item');
-          if (!item) return;
+          // Cancelar comportamiento nativo de inmediato:
+          // Esto elimina la espera por defecto de 500ms que imponen los navegadores móviles (Android/iOS)
+          // al buscar pulsaciones prolongadas (long-press) o scroll.
+          if (e.cancelable) e.preventDefault();
+
+          cleanupTouchDrag();
 
           const noteId = item.getAttribute('data-id');
           touchDragId = noteId;
@@ -1382,25 +1400,22 @@
           const touch = e.touches[0];
           touchStartX = touch.clientX;
           touchStartY = touch.clientY;
-        }, { passive: true });
+
+          // Activación visual instantánea (0ms de retraso): entra en estado de arrastre inmediatamente
+          item.classList.add('is-dragging');
+          if (navigator.vibrate) {
+            try { navigator.vibrate(10); } catch (_) {}
+          }
+        }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
           if (!isTouchActive || !touchDragId) return;
 
-          // Prevenir pull-to-refresh nativo del navegador inmediatamente al arrastrar desde el tirador
+          // Prevenir pull-to-refresh y scroll de inmediato al mover
           if (e.cancelable) e.preventDefault();
 
           const touch = e.touches[0];
-          const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
-
-          // Activar arrastre solo tras mover el dedo más de 6px para evitar activación en simple toque
-          if (!touchMoved && dist > 6) {
-            touchMoved = true;
-            const item = notesList.querySelector(`[data-id="${touchDragId}"]`);
-            if (item) item.classList.add('is-dragging');
-          }
-
-          if (!touchMoved) return;
+          touchMoved = true;
 
           const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
           if (!elUnder) return;
