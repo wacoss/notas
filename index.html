@@ -658,9 +658,77 @@
       .btn-modal-confirm:hover {
         background: #dc2626;
       }
+
+      /* Mensajes flotantes en la zona superior (Toast pill) */
+      .toast-container {
+        position: fixed;
+        top: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 3000;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: max-content;
+        max-width: 90vw;
+      }
+
+      .toast-pill {
+        background: #ffffff;
+        border: 1px solid rgba(226, 232, 240, 0.95);
+        border-radius: 9999px;
+        padding: 9px 20px;
+        box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.05);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14.5px;
+        font-weight: 600;
+        color: #1e293b;
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+        transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        pointer-events: auto;
+        user-select: none;
+        letter-spacing: -0.01em;
+      }
+
+      .toast-pill.show {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      .toast-dot {
+        width: 8.5px;
+        height: 8.5px;
+        border-radius: 50%;
+        background-color: #4f46e5;
+        flex-shrink: 0;
+      }
+
+      .toast-dot.indigo {
+        background-color: #4f46e5;
+      }
+
+      .toast-dot.blue {
+        background-color: #2563eb;
+      }
+
+      .toast-dot.emerald {
+        background-color: #10b981;
+      }
+
+      .toast-dot.rose {
+        background-color: #f43f5e;
+      }
     </style>
   </head>
   <body>
+    <!-- Contenedor de mensajes flotantes tipo Toast en la zona superior -->
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
     <div class="app-wrapper">
       <!-- Header fuera de la interfaz principal -->
       <header class="app-header">
@@ -817,6 +885,38 @@
         const btnConfirmDelete = document.getElementById('btn-confirm-delete');
         let noteIdToDelete = null;
 
+        // Toast notifications (Mensajes flotantes en la zona superior)
+        const toastContainer = document.getElementById('toast-container');
+        let toastTimeout = null;
+
+        function showToast(message, dotType = 'indigo') {
+          if (!toastContainer) return;
+
+          if (toastTimeout) clearTimeout(toastTimeout);
+          toastContainer.innerHTML = '';
+
+          const pill = document.createElement('div');
+          pill.className = 'toast-pill';
+          pill.innerHTML = `
+            <span class="toast-dot ${dotType}"></span>
+            <span>${escapeHtml(message)}</span>
+          `;
+          toastContainer.appendChild(pill);
+
+          requestAnimationFrame(() => {
+            pill.classList.add('show');
+          });
+
+          toastTimeout = setTimeout(() => {
+            pill.classList.remove('show');
+            setTimeout(() => {
+              if (toastContainer.contains(pill)) {
+                pill.remove();
+              }
+            }, 240);
+          }, 2400);
+        }
+
         function openDeleteModal(id) {
           noteIdToDelete = id;
           if (deleteModal) {
@@ -843,6 +943,7 @@
               saveNotes(notes);
               closeDeleteModal();
               render();
+              showToast('Nota eliminada', 'rose');
             }
           });
         }
@@ -946,6 +1047,7 @@
           saveNotes(notes);
           closeNoteInput();
           render();
+          showToast('Nota creada', 'emerald');
         }
 
         textareaNewNote.addEventListener('keydown', (e) => {
@@ -1079,6 +1181,7 @@
           notes = notes.map(n => n.id === id ? { ...n, completed: true } : n);
           saveNotes(notes);
           render();
+          showToast('Movida a Archivado', 'indigo');
         }
 
         function reorderPrincipalNotes(sourceId, targetId, insertBefore) {
@@ -1098,6 +1201,7 @@
 
           saveNotes(notes);
           render();
+          showToast('Notas reordenadas', 'blue');
         }
 
         // HTML5 Drag & Drop (Desktop)
@@ -1343,6 +1447,7 @@
             notes = notes.map(n => n.id === noteId ? { ...n, completed: false } : n);
             saveNotes(notes);
             render();
+            showToast('Tarea restaurada a Principal', 'indigo');
             return;
           }
 
@@ -1498,8 +1603,13 @@
           if (editTextarea) {
             const newText = editTextarea.value.trim();
             if (newText) {
+              const prevNote = notes.find(n => n.id === targetNoteId);
+              const hasChanged = prevNote && prevNote.text.trim() !== newText;
               notes = notes.map(n => n.id === targetNoteId ? { ...n, text: newText } : n);
               saveNotes(notes);
+              if (hasChanged) {
+                showToast('Nota guardada', 'blue');
+              }
             }
           }
           editingId = null;
