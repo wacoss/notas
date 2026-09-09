@@ -943,7 +943,6 @@
               saveNotes(notes);
               closeDeleteModal();
               render();
-              showToast('Nota eliminada', 'rose');
             }
           });
         }
@@ -1181,7 +1180,7 @@
           notes = notes.map(n => n.id === id ? { ...n, completed: true } : n);
           saveNotes(notes);
           render();
-          showToast('Movida a Archivado', 'indigo');
+          showToast('Movido a Archivado', 'indigo');
         }
 
         function reorderPrincipalNotes(sourceId, targetId, insertBefore) {
@@ -1447,7 +1446,7 @@
             notes = notes.map(n => n.id === noteId ? { ...n, completed: false } : n);
             saveNotes(notes);
             render();
-            showToast('Tarea restaurada a Principal', 'indigo');
+            showToast('Restaurada a Principal', 'indigo');
             return;
           }
 
