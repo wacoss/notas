@@ -78,7 +78,7 @@
         font-size: 24px;
         font-weight: 700;
         letter-spacing: -0.015em;
-        color: var(--primary);
+        color: var(--text-main);
       }
 
       .storage-tag {
@@ -240,49 +240,6 @@
       .note-textarea::placeholder {
         color: #94a3b8;
         font-weight: 400;
-      }
-
-      .input-controls {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        flex-shrink: 0;
-      }
-
-      .btn-save-input {
-        background: none;
-        border: none;
-        color: var(--accent);
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s ease;
-      }
-
-      .btn-save-input:hover {
-        background: #eff6ff;
-        color: var(--accent-hover);
-      }
-
-      .btn-close-input {
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s ease;
-      }
-
-      .btn-close-input:hover {
-        background: #f1f5f9;
-        color: var(--text-main);
       }
 
       /* Notes List */
@@ -516,11 +473,6 @@
       .action-btn:hover {
         background: #f1f5f9;
         color: var(--text-main);
-      }
-
-      .action-btn.btn-save:hover {
-        background: #ecfdf5;
-        color: #059669;
       }
 
       .action-btn.btn-restore:hover {
@@ -925,8 +877,6 @@
         const badgeCompletada = document.getElementById('badge-completada');
         const containerAddNote = document.getElementById('container-add-note');
         const textareaNewNote = document.getElementById('input-new-note');
-        const btnSaveNewNote = document.getElementById('btn-save-new-note');
-        const btnCloseInput = document.getElementById('btn-close-input');
         const btnFabAdd = document.getElementById('btn-fab-add');
         const notesList = document.getElementById('notes-list');
         const emptyState = document.getElementById('empty-state');
@@ -973,6 +923,9 @@
           noteIdToDelete = id;
           if (deleteModal) {
             deleteModal.style.display = 'flex';
+            if (btnCancelDelete) {
+              btnCancelDelete.focus();
+            }
           }
         }
 
@@ -995,6 +948,7 @@
               saveNotes(notes);
               closeDeleteModal();
               render();
+              showToast('Nota eliminada', 'rose');
             }
           });
         }
@@ -1043,14 +997,6 @@
 
         // FAB Click
         btnFabAdd.addEventListener('click', toggleNoteInput);
-
-        // Close and save buttons if present
-        if (btnCloseInput) {
-          btnCloseInput.addEventListener('click', closeNoteInput);
-        }
-        if (btnSaveNewNote) {
-          btnSaveNewNote.addEventListener('click', submitNewNote);
-        }
 
         // Auto-expand textarea smoothly
         textareaNewNote.addEventListener('input', () => {
@@ -1370,8 +1316,6 @@
           tabBtnCompletada.classList.remove('drop-target-active');
           const draggingItem = notesList.querySelector('.is-dragging');
           if (draggingItem) draggingItem.classList.remove('is-dragging');
-          // Eliminar cualquier elemento residual si existiera
-          document.querySelectorAll('.touch-drag-ghost').forEach(el => el.remove());
         }
 
         document.addEventListener('touchstart', (e) => {
@@ -1625,15 +1569,6 @@
             }
           }
         }, { passive: true });
-
-        // Double click para editar
-        notesList.addEventListener('dblclick', (e) => {
-          if (currentTab !== 'principal') return;
-          const item = e.target.closest('.note-item');
-          if (!item || editingId || isInputOpen || Date.now() - lastEditCommitTime < 450) return;
-          editingId = item.getAttribute('data-id');
-          render();
-        });
 
         // Shortcuts en el textarea de edición
         notesList.addEventListener('keydown', (e) => {
