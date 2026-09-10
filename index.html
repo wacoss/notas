@@ -1,4 +1,5 @@
 <!-- Fuente : https://aistudio.google.com/apps/c8e41726-ae84-403e-9432-a71839ca1e70?showAssistant=true&showCode=true  -->
+
 <!doctype html>
 <html lang="es">
   <head>
@@ -358,44 +359,7 @@
         min-width: 0;
       }
 
-      /* Drag handle icon para arrastre vertical */
-      .drag-handle {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #94a3b8;
-        cursor: grab;
-        flex-shrink: 0;
-        margin-top: -2px;
-        margin-left: -6px;
-        margin-right: -2px;
-        touch-action: none;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
-        border-radius: 6px;
-        transition: color 0.15s ease, background-color 0.15s ease;
-      }
-
-      .drag-handle svg {
-        width: 16px;
-        height: 16px;
-      }
-
-      .note-item:hover .drag-handle {
-        color: #64748b;
-      }
-
-      .drag-handle:hover {
-        color: var(--accent);
-        background-color: #eff6ff;
-      }
-
-      .drag-handle:active {
-        cursor: grabbing;
-      }
+      /* Funcionalidad de arrastre activa en toda la fila */
 
 
       /* Content with HIGHER FONT WEIGHT (Peso aumentado de las tareas) */
@@ -1107,19 +1071,7 @@
                 draggable="${canDrag ? 'true' : 'false'}"
               >
                 <div class="note-left">
-                  ${isPrincipal ? `
-                    <!-- Tirador de arrastre estilo Kanban (reemplaza a la casilla de verificación) -->
-                    <div class="drag-handle" title="Arrastra para reordenar arriba/abajo o hacia Archivado" data-action="drag-handle" aria-label="Arrastrar nota">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <circle cx="9" cy="6" r="1.4" fill="currentColor"/>
-                        <circle cx="9" cy="12" r="1.4" fill="currentColor"/>
-                        <circle cx="9" cy="18" r="1.4" fill="currentColor"/>
-                        <circle cx="15" cy="6" r="1.4" fill="currentColor"/>
-                        <circle cx="15" cy="12" r="1.4" fill="currentColor"/>
-                        <circle cx="15" cy="18" r="1.4" fill="currentColor"/>
-                      </svg>
-                    </div>
-                  ` : ''}
+
 
                   ${isEditing ? `
                     <div class="edit-container">
@@ -1360,19 +1312,11 @@
         document.addEventListener('touchstart', (e) => {
           if (currentTab !== 'principal' || editingId) return;
 
-          let handle = e.target.closest('.drag-handle');
+          // No iniciar arrastre si se interactúa con botones de acción o edición
+          if (e.target.closest('.action-btn') || e.target.closest('.edit-container')) return;
+
           const item = e.target.closest('.note-item');
           if (!item) return;
-
-          // Detectar si el toque ocurrió en el tirador o en la zona izquierda del tirador (primeros 50px de la nota)
-          if (!handle) {
-            const touch = e.touches[0];
-            const rect = item.getBoundingClientRect();
-            if ((touch.clientX - rect.left) <= 50 && !e.target.closest('.action-btn')) {
-              handle = item.querySelector('.drag-handle');
-            }
-          }
-          if (!handle) return;
 
           cleanupTouchDrag();
 
@@ -1520,10 +1464,7 @@
           const targetAction = e.target.closest('[data-action]');
           const action = targetAction ? targetAction.getAttribute('data-action') : null;
 
-          // Si se hace clic sobre el tirador de arrastre, no iniciar edición
-          if (e.target.closest('.drag-handle')) {
-            return;
-          }
+
 
           // Restore note (in completada tab)
           if (action === 'restore') {
@@ -1541,7 +1482,7 @@
           }
 
           // Start edit al presionar sobre el texto de la nota
-          if ((action === 'start-edit' || (!action && e.target.closest('.note-left') && !e.target.closest('.drag-handle'))) && currentTab === 'principal') {
+          if ((action === 'start-edit' || (!action && e.target.closest('.note-left'))) && currentTab === 'principal') {
             // Si el campo de creación de nueva nota está abierto y se presiona una nota:
             // la acción que debe ocurrir es finalizar/guardar la creación, NO abrir la nota presionada.
             if (isInputOpen) {
