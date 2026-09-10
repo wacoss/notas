@@ -1,4 +1,5 @@
-<!-- Fuente : https://aistudio.google.com/apps/c8e41726-ae84-403e-9432-a71839ca1e70?showAssistant=true&showCode=true  -->
+<!-- OJO Se queda pegado en AIStudio: Fuente : https://aistudio.google.com/apps/c8e41726-ae84-403e-9432-a71839ca1e70?showAssistant=true&showCode=true  
+fuente 2: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?project=gen-lang-client-0208935930&showAssistant=true&showCode=true-->
 
 <!doctype html>
 <html lang="es">
@@ -291,36 +292,9 @@
       }
 
       .note-item.is-dragging {
-        opacity: 0.28;
+        opacity: 0.35;
         background-color: #eff6ff !important;
         border-color: #93c5fd !important;
-      }
-
-      /* Clon flotante de alta precisión para arrastre táctil en móviles */
-      .touch-drag-avatar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        pointer-events: none;
-        z-index: 99999;
-        background-color: #ffffff;
-        border: 2px solid var(--accent);
-        border-radius: 10px;
-        box-shadow: 0 16px 36px -4px rgba(37, 99, 235, 0.35), 0 8px 16px -4px rgba(0, 0, 0, 0.14);
-        padding: 14px 16px;
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--text-main);
-        white-space: pre-wrap;
-        word-break: break-word;
-        max-height: 110px;
-        overflow: hidden;
-        opacity: 0.96;
-        box-sizing: border-box;
-        will-change: transform;
-        -webkit-touch-callout: none !important;
-        -webkit-user-select: none !important;
-        user-select: none !important;
       }
 
       /* Indicador de posición de inserción: Cápsula flotante direccional y resalto suave de la tarjeta */
@@ -1336,7 +1310,6 @@
         let touchStartTime = 0;
         let touchTimer = null;
         let currentTouchDropTarget = null;
-        let touchAvatar = null;
         let draggedItemEl = null;
         const HOLD_THRESHOLD_MS = 140; // Rápida activación táctil (140ms)
         const SCROLL_CANCEL_DIST = 22; // Margen de movimiento permitido antes de cancelar por scroll de página
@@ -1346,10 +1319,6 @@
             clearTimeout(touchTimer);
             touchTimer = null;
           }
-          if (touchAvatar && touchAvatar.parentNode) {
-            touchAvatar.parentNode.removeChild(touchAvatar);
-          }
-          touchAvatar = null;
           if (draggedItemEl) {
             draggedItemEl.classList.remove('is-dragging');
             draggedItemEl = null;
@@ -1414,21 +1383,6 @@
             }
 
             item.classList.add('is-dragging');
-
-            // Crear el clon flotante que sigue el dedo en pantalla
-            const rect = item.getBoundingClientRect();
-            touchAvatar = document.createElement('div');
-            touchAvatar.className = 'touch-drag-avatar';
-            const avatarWidth = Math.min(rect.width, window.innerWidth - 32);
-            touchAvatar.style.width = `${avatarWidth}px`;
-
-            const noteData = notes.find(n => n.id === noteId);
-            touchAvatar.textContent = noteData ? noteData.text : item.textContent.trim();
-
-            const initialX = touch.clientX - avatarWidth / 2;
-            const initialY = touch.clientY - 42;
-            touchAvatar.style.transform = `translate3d(${initialX}px, ${initialY}px, 0)`;
-            document.body.appendChild(touchAvatar);
           }, HOLD_THRESHOLD_MS);
         }, { passive: true });
 
@@ -1450,13 +1404,6 @@
 
           if (e.cancelable) {
             e.preventDefault();
-          }
-
-          if (touchAvatar) {
-            const avatarWidth = touchAvatar.offsetWidth || 280;
-            const avatarX = touch.clientX - (avatarWidth / 2);
-            const avatarY = touch.clientY - 45;
-            touchAvatar.style.transform = `translate3d(${avatarX}px, ${avatarY}px, 0) scale(1.02)`;
           }
 
           // Desplazamiento automático si se acerca a los bordes de la pantalla
