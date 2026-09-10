@@ -1,6 +1,5 @@
 <!-- Fuente : https://aistudio.google.com/apps/c8e41726-ae84-403e-9432-a71839ca1e70?showAssistant=true&showCode=true  -->
 
-
 <!doctype html>
 <html lang="es">
   <head>
@@ -277,9 +276,6 @@
 
       .note-item.can-drag {
         cursor: grab;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
       }
 
       .note-item.can-drag:active {
@@ -364,13 +360,42 @@
       }
 
       /* Drag handle icon para arrastre vertical */
-      /* Elemento controlador conservado para no romper selección y referencias */
       .drag-handle {
-        display: none;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        cursor: grab;
+        flex-shrink: 0;
+        margin-top: -2px;
+        margin-left: -6px;
+        margin-right: -2px;
         touch-action: none;
         -webkit-touch-callout: none;
         -webkit-user-select: none;
         user-select: none;
+        border-radius: 6px;
+        transition: color 0.15s ease, background-color 0.15s ease;
+      }
+
+      .drag-handle svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .note-item:hover .drag-handle {
+        color: #64748b;
+      }
+
+      .drag-handle:hover {
+        color: var(--accent);
+        background-color: #eff6ff;
+      }
+
+      .drag-handle:active {
+        cursor: grabbing;
       }
 
 
@@ -384,9 +409,6 @@
         flex: 1;
         cursor: pointer;
         white-space: pre-wrap;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
       }
 
       .note-item.is-completed .note-content-text {
@@ -1087,8 +1109,17 @@
               >
                 <div class="note-left">
                   ${isPrincipal ? `
-                    <!-- Elemento controlador de arrastre presente sin puntitos visuales -->
-                    <div class="drag-handle" title="Arrastra para reordenar arriba/abajo o hacia Archivado" data-action="drag-handle" aria-label="Arrastrar nota"></div>
+                    <!-- Tirador de arrastre estilo Kanban (reemplaza a la casilla de verificación) -->
+                    <div class="drag-handle" title="Arrastra para reordenar arriba/abajo o hacia Archivado" data-action="drag-handle" aria-label="Arrastrar nota">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="9" cy="6" r="1.4" fill="currentColor"/>
+                        <circle cx="9" cy="12" r="1.4" fill="currentColor"/>
+                        <circle cx="9" cy="18" r="1.4" fill="currentColor"/>
+                        <circle cx="15" cy="6" r="1.4" fill="currentColor"/>
+                        <circle cx="15" cy="12" r="1.4" fill="currentColor"/>
+                        <circle cx="15" cy="18" r="1.4" fill="currentColor"/>
+                      </svg>
+                    </div>
                   ` : ''}
 
                   ${isEditing ? `
@@ -1334,9 +1365,13 @@
           const item = e.target.closest('.note-item');
           if (!item) return;
 
-          // Permitir arrastre táctil al mantener presionada la nota (excluyendo botones de acción)
-          if (!handle && !e.target.closest('.action-btn')) {
-            handle = item.querySelector('.drag-handle') || item;
+          // Detectar si el toque ocurrió en el tirador o en la zona izquierda del tirador (primeros 50px de la nota)
+          if (!handle) {
+            const touch = e.touches[0];
+            const rect = item.getBoundingClientRect();
+            if ((touch.clientX - rect.left) <= 50 && !e.target.closest('.action-btn')) {
+              handle = item.querySelector('.drag-handle');
+            }
           }
           if (!handle) return;
 
