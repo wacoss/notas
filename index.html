@@ -33,11 +33,12 @@
         box-sizing: border-box;
         margin: 0;
         padding: 0;
+        -webkit-tap-highlight-color: transparent;
       }
 
       html,
       body {
-        /* Desactiva el gesto de arrastrar hacia abajo para actualizar la página (pull-to-refresh) en móviles */
+        /* Desactiva pull-to-refresh y rebotes no deseados en móviles */
         overscroll-behavior-y: none;
         overscroll-behavior: none;
       }
@@ -264,10 +265,13 @@
         border-bottom: 1px solid #f1f5f9;
         transition: background-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
         position: relative;
-        /* Evita la selección accidental de texto y menús contextuales en móvil */
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
+        touch-action: pan-y;
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        -khtml-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
       }
 
       .note-item:last-child {
@@ -287,10 +291,36 @@
       }
 
       .note-item.is-dragging {
-        opacity: 0.35;
-        background-color: #eff6ff;
-        border-color: transparent;
+        opacity: 0.28;
+        background-color: #eff6ff !important;
+        border-color: #93c5fd !important;
+      }
+
+      /* Clon flotante de alta precisión para arrastre táctil en móviles */
+      .touch-drag-avatar {
+        position: fixed;
+        top: 0;
+        left: 0;
         pointer-events: none;
+        z-index: 99999;
+        background-color: #ffffff;
+        border: 2px solid var(--accent);
+        border-radius: 10px;
+        box-shadow: 0 16px 36px -4px rgba(37, 99, 235, 0.35), 0 8px 16px -4px rgba(0, 0, 0, 0.14);
+        padding: 14px 16px;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-main);
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 110px;
+        overflow: hidden;
+        opacity: 0.96;
+        box-sizing: border-box;
+        will-change: transform;
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
       }
 
       /* Indicador de posición de inserción: Cápsula flotante direccional y resalto suave de la tarjeta */
@@ -373,9 +403,12 @@
         flex: 1;
         cursor: pointer;
         white-space: pre-wrap;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        -khtml-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
       }
 
       .note-item.is-completed .note-content-text {
@@ -411,9 +444,9 @@
         overflow-y: auto;
         scrollbar-width: none; /* Firefox */
         -ms-overflow-style: none; /* IE y Edge */
-        -webkit-touch-callout: default;
-        -webkit-user-select: text;
-        user-select: text;
+        -webkit-touch-callout: default !important;
+        -webkit-user-select: text !important;
+        user-select: text !important;
       }
 
       .note-actions {
@@ -1139,13 +1172,18 @@
           showToast('Movido a Archivado', 'indigo');
         }
 
-        function getReorderTargetPosition(sourceId, targetId) {
+        function getReorderTargetPosition(sourceId, targetId, cursorY, targetRect) {
           const visibleNotes = notes.filter(n => !n.completed);
           const sourceIndex = visibleNotes.findIndex(n => n.id === sourceId);
           const targetIndex = visibleNotes.findIndex(n => n.id === targetId);
 
           if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
             return null;
+          }
+
+          if (cursorY !== undefined && targetRect) {
+            const isTopHalf = (cursorY - targetRect.top) < (targetRect.height / 2);
+            return { insertBefore: isTopHalf, position: isTopHalf ? 'top' : 'bottom' };
           }
 
           if (targetIndex < sourceIndex) {
@@ -1220,7 +1258,8 @@
           }
 
           const targetId = item.getAttribute('data-id');
-          const targetPos = getReorderTargetPosition(draggedNoteId, targetId);
+          const targetRect = item.getBoundingClientRect();
+          const targetPos = getReorderTargetPosition(draggedNoteId, targetId, e.clientY, targetRect);
 
           clearDragIndicators();
           if (targetPos) {
@@ -1241,7 +1280,8 @@
           const item = e.target.closest('.note-item');
           if (item && item.getAttribute('data-id') !== draggedNoteId) {
             const targetId = item.getAttribute('data-id');
-            const targetPos = getReorderTargetPosition(draggedNoteId, targetId);
+            const targetRect = item.getBoundingClientRect();
+            const targetPos = getReorderTargetPosition(draggedNoteId, targetId, e.clientY, targetRect);
             if (targetPos) {
               reorderPrincipalNotes(draggedNoteId, targetId, targetPos.insertBefore);
             }
@@ -1285,41 +1325,64 @@
           lastDragEndTime = Date.now();
         });
 
-        // Soporte Táctil Móvil optimizado
+        // ==========================================
+        // SOPORTE TÁCTIL MÓVIL OPTIMIZADO
+        // Sin menú nativo "Copiar/Compartir/Seleccionar todo"
+        // ==========================================
         let touchDragId = null;
         let isTouchActive = false;
-        let touchMoved = false;
-        let touchStartY = 0;
         let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartTime = 0;
         let touchTimer = null;
         let currentTouchDropTarget = null;
-        const MIN_LONG_PRESS_MS = 220;
+        let touchAvatar = null;
+        let draggedItemEl = null;
+        const HOLD_THRESHOLD_MS = 140; // Rápida activación táctil (140ms)
+        const SCROLL_CANCEL_DIST = 22; // Margen de movimiento permitido antes de cancelar por scroll de página
 
         function cleanupTouchDrag() {
           if (touchTimer) {
             clearTimeout(touchTimer);
             touchTimer = null;
           }
+          if (touchAvatar && touchAvatar.parentNode) {
+            touchAvatar.parentNode.removeChild(touchAvatar);
+          }
+          touchAvatar = null;
+          if (draggedItemEl) {
+            draggedItemEl.classList.remove('is-dragging');
+            draggedItemEl = null;
+          }
           touchDragId = null;
           isTouchActive = false;
-          touchMoved = false;
           currentTouchDropTarget = null;
           clearDragIndicators();
           tabBtnCompletada.classList.remove('drop-target-active');
-          const draggingItem = notesList.querySelector('.is-dragging');
-          if (draggingItem) draggingItem.classList.remove('is-dragging');
+          const draggingItems = notesList.querySelectorAll('.is-dragging');
+          draggingItems.forEach(el => el.classList.remove('is-dragging'));
         }
 
-        // Prevenir menú nativo "Copiar/Compartir/Seleccionar todo" en elementos de notas
-        notesList.addEventListener('contextmenu', (e) => {
-          if (!editingId && e.target.closest('.note-item')) {
-            e.preventDefault();
+        // Prevenir menús contextuales y la selección nativa ("Copiar / Compartir / Seleccionar todo") en las notas
+        window.addEventListener('contextmenu', (e) => {
+          if (e.target.closest('.edit-container') || e.target.closest('#container-add-note')) {
+            return;
           }
-        });
+          e.preventDefault();
+          return false;
+        }, { capture: true, passive: false });
+
+        window.addEventListener('selectstart', (e) => {
+          if (e.target.closest('.edit-container') || e.target.closest('#container-add-note')) {
+            return;
+          }
+          e.preventDefault();
+          return false;
+        }, { capture: true, passive: false });
 
         document.addEventListener('touchstart', (e) => {
           if (currentTab !== 'principal' || editingId) return;
-          if (e.target.closest('.action-btn') || e.target.closest('.edit-container')) return;
+          if (e.target.closest('.action-btn') || e.target.closest('.edit-container') || e.target.closest('#container-add-note')) return;
 
           const item = e.target.closest('.note-item');
           if (!item) return;
@@ -1327,38 +1390,81 @@
           cleanupTouchDrag();
 
           const noteId = item.getAttribute('data-id');
+          if (!noteId) return;
+
           touchDragId = noteId;
+          draggedItemEl = item;
           isTouchActive = false;
-          touchMoved = false;
 
           const touch = e.touches[0];
           touchStartX = touch.clientX;
           touchStartY = touch.clientY;
+          touchStartTime = Date.now();
 
           touchTimer = setTimeout(() => {
             isTouchActive = true;
-            item.classList.add('is-dragging');
+            touchTimer = null;
+
             if (navigator.vibrate) {
-              try { navigator.vibrate(18); } catch (_) {}
+              try { navigator.vibrate(22); } catch (_) {}
             }
-          }, MIN_LONG_PRESS_MS);
+
+            if (window.getSelection) {
+              window.getSelection().removeAllRanges();
+            }
+
+            item.classList.add('is-dragging');
+
+            // Crear el clon flotante que sigue el dedo en pantalla
+            const rect = item.getBoundingClientRect();
+            touchAvatar = document.createElement('div');
+            touchAvatar.className = 'touch-drag-avatar';
+            const avatarWidth = Math.min(rect.width, window.innerWidth - 32);
+            touchAvatar.style.width = `${avatarWidth}px`;
+
+            const noteData = notes.find(n => n.id === noteId);
+            touchAvatar.textContent = noteData ? noteData.text : item.textContent.trim();
+
+            const initialX = touch.clientX - avatarWidth / 2;
+            const initialY = touch.clientY - 42;
+            touchAvatar.style.transform = `translate3d(${initialX}px, ${initialY}px, 0)`;
+            document.body.appendChild(touchAvatar);
+          }, HOLD_THRESHOLD_MS);
         }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
           if (!touchDragId) return;
 
           const touch = e.touches[0];
-          const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+          const deltaX = touch.clientX - touchStartX;
+          const deltaY = touch.clientY - touchStartY;
+          const dist = Math.hypot(deltaX, deltaY);
 
           if (!isTouchActive) {
-            if (dist > 9) {
+            // Si el usuario mueve el dedo más de SCROLL_CANCEL_DIST antes del temporizador, es un scroll de página
+            if (Math.abs(deltaY) > SCROLL_CANCEL_DIST || dist > SCROLL_CANCEL_DIST * 1.3) {
               cleanupTouchDrag();
             }
             return;
           }
 
-          if (e.cancelable) e.preventDefault();
-          touchMoved = true;
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+
+          if (touchAvatar) {
+            const avatarWidth = touchAvatar.offsetWidth || 280;
+            const avatarX = touch.clientX - (avatarWidth / 2);
+            const avatarY = touch.clientY - 45;
+            touchAvatar.style.transform = `translate3d(${avatarX}px, ${avatarY}px, 0) scale(1.02)`;
+          }
+
+          // Desplazamiento automático si se acerca a los bordes de la pantalla
+          if (touch.clientY < 65) {
+            window.scrollBy(0, -7);
+          } else if (touch.clientY > window.innerHeight - 65) {
+            window.scrollBy(0, 7);
+          }
 
           const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
           if (!elUnder) return;
@@ -1366,24 +1472,29 @@
           if (tabBtnCompletada.contains(elUnder)) {
             tabBtnCompletada.classList.add('drop-target-active');
             clearDragIndicators();
-            currentTouchDropTarget = null;
+            currentTouchDropTarget = { type: 'archive' };
             return;
           } else {
             tabBtnCompletada.classList.remove('drop-target-active');
           }
 
-          const item = elUnder.closest('.note-item');
-          if (item && item.getAttribute('data-id') !== touchDragId) {
-            const targetId = item.getAttribute('data-id');
-            const targetPos = getReorderTargetPosition(touchDragId, targetId);
+          const targetItem = elUnder.closest('.note-item');
+          if (targetItem && targetItem.getAttribute('data-id') !== touchDragId) {
+            const targetId = targetItem.getAttribute('data-id');
+            const targetRect = targetItem.getBoundingClientRect();
+            const targetPos = getReorderTargetPosition(touchDragId, targetId, touch.clientY, targetRect);
             clearDragIndicators();
             if (targetPos) {
-              item.classList.add(targetPos.position === 'top' ? 'drag-over-top' : 'drag-over-bottom');
-              currentTouchDropTarget = { targetId, insertBefore: targetPos.insertBefore };
+              targetItem.classList.add(targetPos.position === 'top' ? 'drag-over-top' : 'drag-over-bottom');
+              currentTouchDropTarget = {
+                type: 'reorder',
+                targetId: targetId,
+                insertBefore: targetPos.insertBefore
+              };
             } else {
               currentTouchDropTarget = null;
             }
-          } else if (!item) {
+          } else if (!targetItem) {
             if (!notesList.contains(elUnder)) {
               clearDragIndicators();
               currentTouchDropTarget = null;
@@ -1397,52 +1508,50 @@
             touchTimer = null;
           }
 
-          if (!isTouchActive || !touchDragId) {
+          const wasActive = isTouchActive;
+          const noteId = touchDragId;
+          const dropTarget = currentTouchDropTarget;
+          const touchDuration = Date.now() - touchStartTime;
+
+          let touchDist = 0;
+          if (e.changedTouches && e.changedTouches[0]) {
+            const touch = e.changedTouches[0];
+            touchDist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+          }
+
+          if (wasActive && noteId) {
+            if (e.cancelable) e.preventDefault();
+            lastDragEndTime = Date.now();
+
             cleanupTouchDrag();
+
+            if (dropTarget) {
+              if (dropTarget.type === 'archive') {
+                archiveNote(noteId);
+                if (navigator.vibrate) try { navigator.vibrate(18); } catch (_) {}
+              } else if (dropTarget.type === 'reorder') {
+                reorderPrincipalNotes(noteId, dropTarget.targetId, dropTarget.insertBefore);
+                if (navigator.vibrate) try { navigator.vibrate(18); } catch (_) {}
+              }
+            }
             return;
           }
 
-          const noteId = touchDragId;
-          const wasMoved = touchMoved;
-          lastDragEndTime = Date.now();
+          cleanupTouchDrag();
 
-          if (wasMoved) {
-            let dropHandled = false;
-
-            if (e.changedTouches && e.changedTouches.length > 0) {
-              const touch = e.changedTouches[0];
-              const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
-
-              if (elUnder && tabBtnCompletada.contains(elUnder)) {
-                cleanupTouchDrag();
-                archiveNote(noteId);
+          // Si fue un toque corto y limpio (TAP) sobre la nota, entrar en modo de edición
+          if (!wasActive && noteId && touchDuration < 320 && touchDist < 16) {
+            if (currentTab === 'principal' && !editingId) {
+              const target = e.target;
+              if (target && (target.closest('.action-btn') || target.closest('.edit-container'))) {
                 return;
               }
-
-              if (elUnder) {
-                const item = elUnder.closest('.note-item');
-                if (item && item.getAttribute('data-id') !== noteId) {
-                  const targetId = item.getAttribute('data-id');
-                  const targetPos = getReorderTargetPosition(noteId, targetId);
-                  if (targetPos) {
-                    dropHandled = true;
-                    cleanupTouchDrag();
-                    reorderPrincipalNotes(noteId, targetId, targetPos.insertBefore);
-                    return;
-                  }
-                }
+              if (Date.now() - lastEditCommitTime > 400 && Date.now() - lastDragEndTime > 400) {
+                editingId = noteId;
+                render();
               }
             }
-
-            if (!dropHandled && currentTouchDropTarget) {
-              const { targetId, insertBefore } = currentTouchDropTarget;
-              cleanupTouchDrag();
-              reorderPrincipalNotes(noteId, targetId, insertBefore);
-              return;
-            }
           }
-
-          cleanupTouchDrag();
         });
 
         document.addEventListener('touchcancel', () => {
