@@ -1,15 +1,13 @@
-<!-- OJO Se queda pegado en AIStudio: Fuente : https://aistudio.google.com/apps/c8e41726-ae84-403e-9432-a71839ca1e70?showAssistant=true&showCode=true  
-fuente 2: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?project=gen-lang-client-0208935930&showAssistant=true&showCode=true-->
-
+<!-- fuente: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?project=gen-lang-client-0208935930&showAssistant=true&showCode=true-->
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mis Notas</title>
-    <meta name="description" content="Bloc de notas minimalista con pestañas Principal y Archivado, botón flotante circular y almacenamiento en localStorage." />
+    <meta name="description" content="Bloc de notas minimalista con pestañas Principal y Papelera, botón flotante circular y almacenamiento en localStorage." />
     <meta property="og:title" content="Mis Notas" />
-    <meta property="og:description" content="Bloc de notas minimalista con pestañas Principal y Archivado, botón flotante circular y almacenamiento en localStorage." />
+    <meta property="og:description" content="Bloc de notas minimalista con pestañas Principal y Papelera, botón flotante circular y almacenamiento en localStorage." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <style>
@@ -161,7 +159,7 @@ fuente 2: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?
         color: var(--accent);
       }
 
-      /* Estilo al arrastrar una nota sobre la pestaña Archivado */
+      /* Estilo al arrastrar una nota sobre la pestaña Papelera */
       .tab-btn.drop-target-active {
         color: var(--accent) !important;
         background-color: #eff6ff !important;
@@ -726,14 +724,14 @@ fuente 2: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?
       </header>
 
       <main class="notes-card" id="notes-app">
-        <!-- 2 Tabs: Principal & Archivado -->
+        <!-- 2 Tabs: Principal & Papelera -->
         <div class="tabs-bar" role="tablist">
           <button class="tab-btn active" id="tab-btn-principal" type="button" role="tab" aria-selected="true">
             <span>Principal</span>
             <span class="tab-badge" id="badge-principal">0</span>
           </button>
           <button class="tab-btn" id="tab-btn-completada" type="button" role="tab" aria-selected="false">
-            <span>Archivado</span>
+            <span>Papelera</span>
             <span class="tab-badge" id="badge-completada">0</span>
           </button>
         </div>
@@ -771,7 +769,7 @@ fuente 2: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?
           <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
         <h3 class="modal-title" id="modal-title">¿Eliminar nota?</h3>
-        <p class="modal-message">Esta nota se eliminará definitivamente de tus archivos. Esta acción no se puede deshacer.</p>
+        <p class="modal-message">Esta nota se eliminará definitivamente de la papelera. Esta acción no se puede deshacer.</p>
         <div class="modal-actions">
           <button type="button" class="btn-modal-cancel" id="btn-cancel-delete">Cancelar</button>
           <button type="button" class="btn-modal-confirm" id="btn-confirm-delete">Eliminar</button>
@@ -1062,8 +1060,8 @@ fuente 2: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?
               emptyText.textContent = 'No hay notas';
               emptyHint.textContent = 'Presiona el botón (+) en la esquina inferior para crear una nota';
             } else {
-              emptyText.textContent = 'No hay notas archivadas';
-              emptyHint.textContent = 'Las notas que archives aparecerán aquí';
+              emptyText.textContent = 'No hay notas en la papelera';
+              emptyHint.textContent = 'Las notas que muevas a la papelera aparecerán aquí';
             }
             return;
           }
@@ -1143,7 +1141,7 @@ fuente 2: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?
           notes = notes.map(n => n.id === id ? { ...n, completed: true } : n);
           saveNotes(notes);
           render();
-          showToast('Movido a Archivado', 'indigo');
+          showToast('Movido a la Papelera', 'indigo');
         }
 
         function getReorderTargetPosition(sourceId, targetId, cursorY, targetRect) {
@@ -1274,7 +1272,7 @@ fuente 2: https://aistudio.google.com/apps/eadd011d-5f05-4619-b0ca-6a05100b7f8c?
           if (draggingItem) draggingItem.classList.remove('is-dragging');
         });
 
-        // Arrastrar sobre la pestaña "Archivado"
+        // Arrastrar sobre la pestaña "Papelera"
         tabBtnCompletada.addEventListener('dragover', (e) => {
           if (!draggedNoteId || currentTab !== 'principal') return;
           e.preventDefault();
