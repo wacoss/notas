@@ -285,6 +285,7 @@
         opacity: 0.35;
         background-color: #eff6ff;
         border-color: transparent;
+        pointer-events: none;
       }
 
       /* Nuevo indicador de posición de inserción: Cápsula flotante direccional y resalto suave de la tarjeta (sin línea horizontal) */
@@ -1182,21 +1183,55 @@
           showToast('Movido a Archivado', 'indigo');
         }
 
+        function getReorderTargetPosition(sourceId, targetId) {
+          const visibleNotes = notes.filter(n => !n.completed);
+          const sourceIndex = visibleNotes.findIndex(n => n.id === sourceId);
+          const targetIndex = visibleNotes.findIndex(n => n.id === targetId);
+
+          if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+            return null;
+          }
+
+          // Al mover hacia arriba: colocarse exactamente en el puesto del objetivo (arriba)
+          if (targetIndex < sourceIndex) {
+            return { insertBefore: true, position: 'top' };
+          }
+
+          // Al mover hacia abajo: colocarse exactamente en el puesto del objetivo (abajo)
+          return { insertBefore: false, position: 'bottom' };
+        }
+
         function reorderPrincipalNotes(sourceId, targetId, insertBefore) {
           if (!sourceId || !targetId || sourceId === targetId) return;
 
+          const visibleNotes = notes.filter(n => !n.completed);
+          const sIdx = visibleNotes.findIndex(n => n.id === sourceId);
+          const tIdx = visibleNotes.findIndex(n => n.id === targetId);
+          if (sIdx === -1 || tIdx === -1 || sIdx === tIdx) return;
+
+          const shouldInsertBefore = insertBefore !== undefined ? insertBefore : (tIdx < sIdx);
+
           const sourceIdx = notes.findIndex(n => n.id === sourceId);
           if (sourceIdx === -1) return;
-          const [movedNote] = notes.splice(sourceIdx, 1);
 
-          const targetIdx = notes.findIndex(n => n.id === targetId);
-          if (targetIdx === -1) {
-            notes.push(movedNote);
-          } else {
-            const finalIndex = insertBefore ? targetIdx : targetIdx + 1;
-            notes.splice(finalIndex, 0, movedNote);
+          const movedNote = notes[sourceIdx];
+          const withoutMoved = notes.filter(n => n.id !== sourceId);
+
+          const newTargetIdx = withoutMoved.findIndex(n => n.id === targetId);
+          if (newTargetIdx === -1) return;
+
+          const finalIndex = shouldInsertBefore ? newTargetIdx : newTargetIdx + 1;
+
+          const updatedNotes = [...withoutMoved];
+          updatedNotes.splice(finalIndex, 0, movedNote);
+
+          // Verificar si el orden de las notas realmente cambió
+          const orderChanged = updatedNotes.some((n, i) => n.id !== notes[i]?.id);
+          if (!orderChanged) {
+            return;
           }
 
+          notes = updatedNotes;
           saveNotes(notes);
           render();
           showToast('Notas reordenadas', 'blue');
@@ -1231,13 +1266,12 @@
             return;
           }
 
-          const rect = item.getBoundingClientRect();
-          const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
+          const targetId = item.getAttribute('data-id');
+          const targetPos = getReorderTargetPosition(draggedNoteId, targetId);
+
           clearDragIndicators();
-          if (isTopHalf) {
-            item.classList.add('drag-over-top');
-          } else {
-            item.classList.add('drag-over-bottom');
+          if (targetPos) {
+            item.classList.add(targetPos.position === 'top' ? 'drag-over-top' : 'drag-over-bottom');
           }
         });
 
@@ -1254,11 +1288,13 @@
           const item = e.target.closest('.note-item');
           if (item && item.getAttribute('data-id') !== draggedNoteId) {
             const targetId = item.getAttribute('data-id');
-            const rect = item.getBoundingClientRect();
-            const insertBefore = (e.clientY - rect.top) < (rect.height / 2);
-            reorderPrincipalNotes(draggedNoteId, targetId, insertBefore);
+            const targetPos = getReorderTargetPosition(draggedNoteId, targetId);
+            if (targetPos) {
+              reorderPrincipalNotes(draggedNoteId, targetId, targetPos.insertBefore);
+            }
           }
           clearDragIndicators();
+          draggedNoteId = null;
           lastDragEndTime = Date.now();
         });
 
@@ -1303,6 +1339,7 @@
         let touchStartY = 0;
         let touchStartX = 0;
         let touchTimer = null;
+        let currentTouchDropTarget = null;
         const MIN_LONG_PRESS_MS = 140; // Tiempo mínimo posible para evitar interferir con scroll o toques rápidos
 
         function cleanupTouchDrag() {
@@ -1313,6 +1350,7 @@
           touchDragId = null;
           isTouchActive = false;
           touchMoved = false;
+          currentTouchDropTarget = null;
           clearDragIndicators();
           tabBtnCompletada.classList.remove('drop-target-active');
           const draggingItem = notesList.querySelector('.is-dragging');
@@ -1381,6 +1419,7 @@
           if (tabBtnCompletada.contains(elUnder)) {
             tabBtnCompletada.classList.add('drop-target-active');
             clearDragIndicators();
+            currentTouchDropTarget = null;
             return;
           } else {
             tabBtnCompletada.classList.remove('drop-target-active');
@@ -1388,16 +1427,20 @@
 
           const item = elUnder.closest('.note-item');
           if (item && item.getAttribute('data-id') !== touchDragId) {
-            const rect = item.getBoundingClientRect();
-            const isTopHalf = (touch.clientY - rect.top) < (rect.height / 2);
+            const targetId = item.getAttribute('data-id');
+            const targetPos = getReorderTargetPosition(touchDragId, targetId);
             clearDragIndicators();
-            if (isTopHalf) {
-              item.classList.add('drag-over-top');
+            if (targetPos) {
+              item.classList.add(targetPos.position === 'top' ? 'drag-over-top' : 'drag-over-bottom');
+              currentTouchDropTarget = { targetId, insertBefore: targetPos.insertBefore };
             } else {
-              item.classList.add('drag-over-bottom');
+              currentTouchDropTarget = null;
             }
-          } else {
-            clearDragIndicators();
+          } else if (!item) {
+            if (!notesList.contains(elUnder)) {
+              clearDragIndicators();
+              currentTouchDropTarget = null;
+            }
           }
         }, { passive: false });
 
@@ -1416,26 +1459,40 @@
           const wasMoved = touchMoved;
           lastDragEndTime = Date.now();
 
-          if (wasMoved && e.changedTouches && e.changedTouches.length > 0) {
-            const touch = e.changedTouches[0];
-            const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (wasMoved) {
+            let dropHandled = false;
 
-            if (elUnder && tabBtnCompletada.contains(elUnder)) {
-              cleanupTouchDrag();
-              archiveNote(noteId);
-              return;
-            }
+            if (e.changedTouches && e.changedTouches.length > 0) {
+              const touch = e.changedTouches[0];
+              const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
 
-            if (elUnder) {
-              const item = elUnder.closest('.note-item');
-              if (item && item.getAttribute('data-id') !== noteId) {
-                const targetId = item.getAttribute('data-id');
-                const rect = item.getBoundingClientRect();
-                const insertBefore = (touch.clientY - rect.top) < (rect.height / 2);
+              if (elUnder && tabBtnCompletada.contains(elUnder)) {
                 cleanupTouchDrag();
-                reorderPrincipalNotes(noteId, targetId, insertBefore);
+                archiveNote(noteId);
                 return;
               }
+
+              if (elUnder) {
+                const item = elUnder.closest('.note-item');
+                if (item && item.getAttribute('data-id') !== noteId) {
+                  const targetId = item.getAttribute('data-id');
+                  const targetPos = getReorderTargetPosition(noteId, targetId);
+                  if (targetPos) {
+                    dropHandled = true;
+                    cleanupTouchDrag();
+                    reorderPrincipalNotes(noteId, targetId, targetPos.insertBefore);
+                    return;
+                  }
+                }
+              }
+            }
+
+            // Si elementFromPoint no coincidió exactamente pero había un objetivo activo visualizado:
+            if (!dropHandled && currentTouchDropTarget) {
+              const { targetId, insertBefore } = currentTouchDropTarget;
+              cleanupTouchDrag();
+              reorderPrincipalNotes(noteId, targetId, insertBefore);
+              return;
             }
           }
 
