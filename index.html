@@ -258,12 +258,16 @@
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        padding: 14px 12px;
+        padding: 14px 14px;
         gap: 14px;
         border-radius: 10px;
         border-bottom: 1px solid #f1f5f9;
         transition: background-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
         position: relative;
+        /* Evita la selección accidental de texto y menús contextuales en móvil */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
       }
 
       .note-item:last-child {
@@ -289,7 +293,7 @@
         pointer-events: none;
       }
 
-      /* Nuevo indicador de posición de inserción: Cápsula flotante direccional y resalto suave de la tarjeta (sin línea horizontal) */
+      /* Indicador de posición de inserción: Cápsula flotante direccional y resalto suave de la tarjeta */
       .note-item.drag-over-top,
       .note-item.drag-over-bottom {
         background-color: #f0f7ff !important;
@@ -359,46 +363,6 @@
         min-width: 0;
       }
 
-      /* Drag handle icon para arrastre vertical */
-      .drag-handle {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #94a3b8;
-        cursor: grab;
-        flex-shrink: 0;
-        margin-top: -2px;
-        margin-left: -6px;
-        margin-right: -2px;
-        touch-action: none;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
-        border-radius: 6px;
-        transition: color 0.15s ease, background-color 0.15s ease;
-      }
-
-      .drag-handle svg {
-        width: 16px;
-        height: 16px;
-      }
-
-      .note-item:hover .drag-handle {
-        color: #64748b;
-      }
-
-      .drag-handle:hover {
-        color: var(--accent);
-        background-color: #eff6ff;
-      }
-
-      .drag-handle:active {
-        cursor: grabbing;
-      }
-
-
       /* Content with HIGHER FONT WEIGHT (Peso aumentado de las tareas) */
       .note-content-text {
         font-size: 16px;
@@ -409,6 +373,9 @@
         flex: 1;
         cursor: pointer;
         white-space: pre-wrap;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
       }
 
       .note-item.is-completed .note-content-text {
@@ -444,6 +411,9 @@
         overflow-y: auto;
         scrollbar-width: none; /* Firefox */
         -ms-overflow-style: none; /* IE y Edge */
+        -webkit-touch-callout: default;
+        -webkit-user-select: text;
+        user-select: text;
       }
 
       .note-actions {
@@ -1020,7 +990,6 @@
           editingId = null;
 
           // Las notas solo se pueden crear en la pestaña principal:
-          // Ocultar FAB y cerrar campo de creación al ir a Completada
           if (tab === 'principal') {
             btnFabAdd.style.display = 'flex';
           } else {
@@ -1031,7 +1000,7 @@
           render();
         }
 
-        // Submit new note logic: triggers on Enter (Shift+Enter inserts newline)
+        // Submit new note logic
         function submitNewNote() {
           const text = textareaNewNote.value.trim();
           if (!text) return;
@@ -1067,7 +1036,7 @@
           }
         });
 
-        // Render function
+        // Render function - SIN LOS 6 PUNTOS
         function render() {
           const isPrincipal = currentTab === 'principal';
           const principalNotes = notes.filter(n => !n.completed);
@@ -1108,20 +1077,6 @@
                 draggable="${canDrag ? 'true' : 'false'}"
               >
                 <div class="note-left">
-                  ${isPrincipal ? `
-                    <!-- Tirador de arrastre estilo Kanban (reemplaza a la casilla de verificación) -->
-                    <div class="drag-handle" title="Arrastra para reordenar arriba/abajo o hacia Archivado" data-action="drag-handle" aria-label="Arrastrar nota">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <circle cx="9" cy="6" r="1.4" fill="currentColor"/>
-                        <circle cx="9" cy="12" r="1.4" fill="currentColor"/>
-                        <circle cx="9" cy="18" r="1.4" fill="currentColor"/>
-                        <circle cx="15" cy="6" r="1.4" fill="currentColor"/>
-                        <circle cx="15" cy="12" r="1.4" fill="currentColor"/>
-                        <circle cx="15" cy="18" r="1.4" fill="currentColor"/>
-                      </svg>
-                    </div>
-                  ` : ''}
-
                   ${isEditing ? `
                     <div class="edit-container">
                       <div class="input-wrapper">
@@ -1168,7 +1123,7 @@
           }
         }
 
-        // --- LÓGICA DE ARRASTRE Y REORDENAMIENTO TIPO KANBAN ---
+        // --- LÓGICA DE REORDENAMIENTO Y ARRASTRE ---
         let draggedNoteId = null;
         let lastDragEndTime = 0;
 
@@ -1193,12 +1148,10 @@
             return null;
           }
 
-          // Al mover hacia arriba: colocarse exactamente en el puesto del objetivo (arriba)
           if (targetIndex < sourceIndex) {
             return { insertBefore: true, position: 'top' };
           }
 
-          // Al mover hacia abajo: colocarse exactamente en el puesto del objetivo (abajo)
           return { insertBefore: false, position: 'bottom' };
         }
 
@@ -1226,7 +1179,6 @@
           const updatedNotes = [...withoutMoved];
           updatedNotes.splice(finalIndex, 0, movedNote);
 
-          // Verificar si el orden de las notas realmente cambió
           const orderChanged = updatedNotes.some((n, i) => n.id !== notes[i]?.id);
           if (!orderChanged) {
             return;
@@ -1308,7 +1260,7 @@
           if (draggingItem) draggingItem.classList.remove('is-dragging');
         });
 
-        // Arrastrar sobre la pestaña "Archivado" para mover la nota
+        // Arrastrar sobre la pestaña "Archivado"
         tabBtnCompletada.addEventListener('dragover', (e) => {
           if (!draggedNoteId || currentTab !== 'principal') return;
           e.preventDefault();
@@ -1333,7 +1285,7 @@
           lastDragEndTime = Date.now();
         });
 
-        // Soporte de Arrastre Táctil (Móvil) con pulsación prolongada mínima (~140ms)
+        // Soporte Táctil Móvil optimizado
         let touchDragId = null;
         let isTouchActive = false;
         let touchMoved = false;
@@ -1341,7 +1293,7 @@
         let touchStartX = 0;
         let touchTimer = null;
         let currentTouchDropTarget = null;
-        const MIN_LONG_PRESS_MS = 140; // Tiempo mínimo posible para evitar interferir con scroll o toques rápidos
+        const MIN_LONG_PRESS_MS = 220;
 
         function cleanupTouchDrag() {
           if (touchTimer) {
@@ -1358,22 +1310,19 @@
           if (draggingItem) draggingItem.classList.remove('is-dragging');
         }
 
+        // Prevenir menú nativo "Copiar/Compartir/Seleccionar todo" en elementos de notas
+        notesList.addEventListener('contextmenu', (e) => {
+          if (!editingId && e.target.closest('.note-item')) {
+            e.preventDefault();
+          }
+        });
+
         document.addEventListener('touchstart', (e) => {
           if (currentTab !== 'principal' || editingId) return;
+          if (e.target.closest('.action-btn') || e.target.closest('.edit-container')) return;
 
-          let handle = e.target.closest('.drag-handle');
           const item = e.target.closest('.note-item');
           if (!item) return;
-
-          // Detectar si el toque ocurrió en el tirador o en la zona izquierda del tirador (primeros 50px de la nota)
-          if (!handle) {
-            const touch = e.touches[0];
-            const rect = item.getBoundingClientRect();
-            if ((touch.clientX - rect.left) <= 50 && !e.target.closest('.action-btn')) {
-              handle = item.querySelector('.drag-handle');
-            }
-          }
-          if (!handle) return;
 
           cleanupTouchDrag();
 
@@ -1386,12 +1335,11 @@
           touchStartX = touch.clientX;
           touchStartY = touch.clientY;
 
-          // Iniciar temporizador de pulsación prolongada reducido al mínimo posible (140ms)
           touchTimer = setTimeout(() => {
             isTouchActive = true;
             item.classList.add('is-dragging');
             if (navigator.vibrate) {
-              try { navigator.vibrate(15); } catch (_) {}
+              try { navigator.vibrate(18); } catch (_) {}
             }
           }, MIN_LONG_PRESS_MS);
         }, { passive: true });
@@ -1402,15 +1350,13 @@
           const touch = e.touches[0];
           const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
 
-          // Si aún no se activó la pulsación prolongada mínima y el usuario mueve el dedo (ej. scroll de página), cancelar
           if (!isTouchActive) {
-            if (dist > 8) {
+            if (dist > 9) {
               cleanupTouchDrag();
             }
             return;
           }
 
-          // Con la pulsación prolongada activa, prevenir pull-to-refresh y scroll para mover la nota
           if (e.cancelable) e.preventDefault();
           touchMoved = true;
 
@@ -1488,7 +1434,6 @@
               }
             }
 
-            // Si elementFromPoint no coincidió exactamente pero había un objetivo activo visualizado:
             if (!dropHandled && currentTouchDropTarget) {
               const { targetId, insertBefore } = currentTouchDropTarget;
               cleanupTouchDrag();
@@ -1521,11 +1466,6 @@
           const targetAction = e.target.closest('[data-action]');
           const action = targetAction ? targetAction.getAttribute('data-action') : null;
 
-          // Si se hace clic sobre el tirador de arrastre, no iniciar edición
-          if (e.target.closest('.drag-handle')) {
-            return;
-          }
-
           // Restore note (in completada tab)
           if (action === 'restore') {
             notes = notes.map(n => n.id === noteId ? { ...n, completed: false } : n);
@@ -1535,16 +1475,14 @@
             return;
           }
 
-          // Delete note (in completada tab) - muestra advertencia antes de eliminar
+          // Delete note (in completada tab)
           if (action === 'delete') {
             openDeleteModal(noteId);
             return;
           }
 
-          // Start edit al presionar sobre el texto de la nota
-          if ((action === 'start-edit' || (!action && e.target.closest('.note-left') && !e.target.closest('.drag-handle'))) && currentTab === 'principal') {
-            // Si el campo de creación de nueva nota está abierto y se presiona una nota:
-            // la acción que debe ocurrir es finalizar/guardar la creación, NO abrir la nota presionada.
+          // Start edit al presionar sobre la nota en pestaña Principal
+          if ((action === 'start-edit' || (!action && e.target.closest('.note-left'))) && currentTab === 'principal') {
             if (isInputOpen) {
               lastEditCommitTime = Date.now();
               const text = textareaNewNote.value.trim();
@@ -1556,15 +1494,11 @@
               return;
             }
 
-            // Si ya se estaba editando una nota y se presiona otra:
-            // La acción que debe ocurrir es finalizar la edición (guardar y salir), NO abrir la segunda nota.
             if (editingId) {
               commitEdit(editingId);
               return;
             }
 
-            // Si la edición o creación acaba de finalizar (por ejemplo en móvil al tocar fuera o cerrar teclado):
-            // prevenir abrir la segunda nota con ese mismo toque.
             if (Date.now() - lastEditCommitTime < 450) {
               return;
             }
@@ -1589,7 +1523,7 @@
           }
         });
 
-        // Completar la acción simplemente pinchando fuera de la caja de edición o creación
+        // Cerrar o guardar edición/creación al hacer clic fuera
         document.addEventListener('click', (e) => {
           if (editingId) {
             if (!e.target.closest('.edit-container')) {
@@ -1609,7 +1543,7 @@
           }
         });
 
-        // En pantallas táctiles (móvil), detectar toque fuera para cerrar edición o creación de inmediato
+        // En pantallas táctiles, detectar toque fuera
         document.addEventListener('touchstart', (e) => {
           if (editingId) {
             if (!e.target.closest('.edit-container')) {
@@ -1638,7 +1572,7 @@
             if (e.key === 'Enter') {
               const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
               if (isTouch) {
-                return; // En celular, el botón de Enter es para salto de línea
+                return; // En celular, Enter es para salto de línea
               }
               if (e.shiftKey) {
                 return; // permite salto de línea en teclado físico con Shift+Enter
